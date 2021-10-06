@@ -1,0 +1,25 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# Cultural Phylogenetic Approach on Designed Objects: Anthropomorphic Objects, Swiss Army Knives, and Idol Lightsticks
+
+Matsui Minoru\*, Saphira Zahra Amethysta\*\*, and Nakajima Reina\*\*\*
+
+## Abstract
+
+Abstract in English. (approx. 100 Words) 
+
+## Keywords
+
+- phylogenetic network
+- cultural phylogenetics
+- design evolution
+- cultural evolution
+
+# 
+
+# Contributions
+
+SZA selected and coded the anthropomorphic objects. RN selected and coded the lightsticks. MM plotted the phylogenetic trees and networks, and conducted the analyses. MM wrote the paper. 

@@ -1,0 +1,37 @@
+---
+title: "Cultural Phylogenetic Approach on Designed Objects: Anthropomorphic Objects, Swiss Army Knives, and Idol Lightsticks"
+author: 
+  - Matsui Minoru^[Advanced Institute of Industrial Technology, matsui-minoru@aiit.ac.jp]
+  - Saphira Zahra Amethysta^[Tokopedia, saphiraamethysta@gmail.com]
+  - Nakajima Reina^[Kao Corp, re.nakazima@gmail.com]
+date: "2021-10-03"
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+---
+
+## Abstract
+
+Abstract in English. (approx. 100 Words) 
+
+## Keywords
+
+- phylogenetic network
+- cultural phylogenetics
+- design evolution
+- cultural evolution
+
+# Swiss army Knives
+
+# 
+
+# Contributions
+
+SZA selected and coded the anthropomorphic objects. RN selected and coded the lightsticks. MM plotted the phylogenetic trees and networks, and conducted the analyses. MM wrote the paper. 
+
+
+# meta
+
+YAML [keys](https://qiita.com/kazutan/items/726e03dfcef1615ae999)
+Bookdown [keys](https://bookdown.org/yihui/rmarkdown-cookbook/multiple-authors.html)

@@ -1,3 +1,17 @@
+# TODO
+
+- [ ] Google Spreadsheetsでデータを公開
+- [ ] それを読み込む
+- [ ] correspondence analysis suuryouka III
+- [ ] PCAって連続値じゃないとできないんだっけ？0/1のPCAってなんかいいのあったよね
+- [ ] UMAP/ t-SNE
+- [ ] OSFでデータを公開　Spreadsheetsだといつ消されるかわからないので…。
+- [ ] Victorinoxに関しては
+  - [ ] 連続値があるので、これでPCAしてみるか カテゴリカル・データのみのPCoAとどちらがいいのかはちょっと興味ある
+  - [ ] データがNNつくった当時よりだいぶ増えてるような…？これでやり直してみたい
+- [ ] anthro
+  - [ ] 対象となったものの出どころを調べる。理想的にはそれの考古学的な論文から引用したい
+    - [ ] 
 # NeighborNetを使ったプロダクトの系統関係の可視化、分類
 
 ## イントロ
@@ -71,11 +85,47 @@ Idol group name (abbreviated as) (Jr.) Kis-My-Ft2(kismy) A.B.C-Z (abc-z) Sexy Zo
 樹状ではなくもっとネットワーク状だ。たとえばIkatの例は明らかにもっと樹状。
 
 これはとても期間が短く、昔のモデルを参照するような、親から子への一方向の影響のようなものがなく、少人数のデザイナーがいろいろやるせいだろう。それでもなお同じ時期の同じグループのものはネットワーク上の同じような場所にあらわれがちなのは、それらをてんでランダムに作っては命名するのではなく、「これはXXXグループのためにつくろう」とやっている、意図のあらわれといえるだろう（ほんま？）
-
+2017-07-20PenLightCategoricalData.tsv.nex
 Deltaは調べられるがどれも対して変わらんな。
 
+Split Decompositionてどうなんだろう。
+https://wiki.duke.edu/display/AnthroTree/10.2+Split+decomposition+methods
+Shennanがやってるやつ、PCAっぽいんだけど。。。
 
 ## 考察
 
 - クラスターで切る：真菌・ウィルス？のようなcontinuumなblobである、似た者同士の人工物においてはどこのチャンクで切るのかというのは本質的とは言い難く、クラスターで切るというのは不適切ではないか
 - コーディングが主観的である問題は変わりない。かといって外形を楕円フーリエやランドマークで形態表形学やる・・・？やるの？それだけじゃないものに関してなるべく客観的になるような工夫（なるべく数値を使うとか、何人もでコーディングして共通部分をまとめるとか、ランダムでいくつか落とすとか・・・？）が必要になるかもねえ。
+
+
+## victorinox データRevisit
+
+[Google Spreadsheets](https://docs.google.com/spreadsheets/d/1wGoQDPPQYy8t440KgaZPt-7RO-IadnYMLapAGiMjqhU/edit#gid=1418750167)にあるものはCSVよりも行が多い。変更履歴をみるとMinimalというのをエクスポートしているようだ。なにをけずってMinimalとしたのかはがんばればわかるがとりあえずパス。
+A列がレイヤー数なのかと思ったがAdventurerが１になっているので違うか？
+
+値段と機能数はまぁ比例する。機能ごとの値段もGLMでだせそう。切片がガワになる。するとお買い得がわかる。ほとんどないだろうけど。
+Wengerのことは無視していたが、この２社の間の技術やトレンドの移行を見るのも面白いんでは…？どこが近いのか、とか。
+売上・シェアの推移とかないのかな。
+https://www.ceibs.edu/alumni-magazine/victorinox-built-last
+
+BSA SentryをOutgroupでいいんじゃない？？だめか・・・84mmが基準になるのもなんか変だし。
+
+## anthropomorphic データRevisit
+p27のあたりの図をもとになんとかyear, year_lower, year_upperをマニュアルで見る。それをプロットしたい。
+
+
+### map
+
+sfをふつうにインストールして`library(sf)`しても落ちる。[sf github repo](https://github.com/r-spatial/sf)をみると色々インストールせよとある。
+```
+install.packages("Rcpp")
+install.packages("rgeos")
+```
+
+## 調べる
+
+[ポケモン系統樹書けるかな？についてのミナカ先生のメモ](https://leeswijzer.hatenablog.com/entry/2012/12/27/092404)。Robert Sokalが架空の虫をやっていたとは…。
+
+[Wiredで紹介されたAppleの系統樹](https://wired.jp/2016/04/11/apples-products-ever-one-glorious-infographic/)非公式なものの例としてよいかもしれない。
+
+[フレッチャーの建築の樹](https://www.naturalright.org/mediterranean1987/%E3%82%AE%E3%83%AA%E3%82%B7%E3%83%A3%E3%81%A8%E3%82%A8%E3%82%B8%E3%83%97%E3%83%88/%E3%83%95%E3%83%AC%E3%83%83%E3%83%81%E3%83%A3%E3%83%BC/) From[太刀川さんの三中先生インタビュー](https://qonversations.net/interview/2814/)
