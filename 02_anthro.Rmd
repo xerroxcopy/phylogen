@@ -1,0 +1,306 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+
+# anthropomorphic
+
+```{r}
+df_anth <- data_anth_raw |> 
+  separate(col = `approximate geocode`, into = c("latitude", "longitude"), sep = ",\\s")
+df_anth
+```
+## data
+
+[sf with points](https://gist.github.com/andrewheiss/0580d6ffec37b6bc4d0ae8e77bf30956)
+
+```{r}
+this_year <- 2021
+
+df_anth <- df_anth |> 
+  mutate(year_d_upper = this_year - year_upper,
+         year_d_lower = this_year - year_lower,
+         year =  if_else(is.na(year), (year_lower + year_upper) / 2, year),
+         d = this_year - year,
+         name_alt_short = factor(name_alt_short)
+  ) |>
+  mutate(name_alt_short = fct_reorder(name_alt_short, year, min))
+
+anth_sf <- df_anth |> 
+  filter(!is.na(longitude)) |> 
+  st_as_sf(coords = c("longitude", "latitude"), crs = 4326) |> 
+  st_transform(crs = 4326) |> 
+  st_coordinates() # converted coordinates of X and Y
+df_anth2 <- bind_cols(df_anth |> filter(!is.na(longitude)), anth_sf |> as_tibble())
+
+  
+```
+
+
+## plot chronology
+
+```{r}
+df_anth2 |> 
+  ggplot(aes(y = name_alt_short, x = d, xmax = year_d_upper, xmin = year_d_lower)) +
+  geom_point() +
+  geom_linerange() +
+  scale_x_continuous(trans = "log10")
+```
+
+## map ~ time
+
+```{r fig.width = 5, fig.height=2.3}
+world <- ne_countries(scale = "medium", returnclass = "sf" )
+ggplot(data = world) +
+  geom_sf(data = world, fill = "gray99") +
+  geom_point(data = df_anth2, aes(x = X, y = Y, fill = d), size = 1, pch = 21) +
+  geom_label_repel(
+    data = df_anth2, 
+    aes(x = X, y = Y, label = name_alt_short, fill = d), 
+    max.overlaps = 30, 
+    min.segment.length = .3,
+    size = 2.5,
+    family = "Fira Code",
+    colour = "white",
+    fontface = "bold", # not working?
+    segment.color = "black"
+    ) +
+  scale_fill_viridis_c(trans = "log10", direction = -1) +
+  scale_y_continuous(breaks = seq(-180, 180, by = 30), limits = c(-10, 80)) +
+  scale_x_continuous(breaks = seq(180, -180, by = -60), limits = c(-150, 150)) +
+  coord_sf(expand = FALSE) +
+  theme_grey(base_family = "Fira Code") +
+  xlab("longitude") +
+  ylab("latitude") +
+  guides(fill = guide_colourbar(barwidth = 7, barheight = .5), direction = "horizontal") +
+  theme(legend.direction = "horizontal", legend.position = c(0.85, 0.9))
+
+
+ggsave(filename = "output/anth_map.pdf", 
+         device = cairo_pdf,
+         dpi = 300,
+         unit = "mm",
+       height = 80 , # pixelsでのサイズ
+       width = 200,  # pixelsでのサイズ
+       limitsize = FALSE)
+```
+
+
+
+## corresp
+
+```{r}
+df_anth_corresp <- df_anth |> 
+  select(name_alt_short, `Embodiment_of Belief`:Assymetrical) |> 
+  mutate(across(everything(), as.factor)) 
+anth_mca <- MCA(df_anth_corresp, ncp = 5, graph = TRUE)
+fviz_screeplot(anth_mca, addlabels = TRUE, ylim = c(0, 45))
+
+df_anth_mca_coord <- get_mca_var(anth_mca)$coord[1:nrow(df_anth), ] |> as_tibble()
+
+
+# http://www.sthda.com/english/articles/31-principal-component-methods-in-r-practical-guide/114-mca-multiple-correspondence-analysis-in-r-essentials/
+# extract eigen value
+anth_corresp_eigen_values <- get_eigenvalue(anth_mca)
+# check eigen v
+anth_corresp_eigen_values
+# variance explained by dim1 and dim2 are:
+# they are later used in the ggplot
+anth_corresp_dim1_ev <- anth_corresp_eigen_values[1, 2]
+anth_corresp_dim2_ev <- anth_corresp_eigen_values[2, 2]
+
+# coordinates
+df_anth_mca_coord <- get_mca_var(anth_mca)$coord[1:nrow(df_anth), ] |> 
+  as_tibble() |> 
+  transmute(mca_x = `Dim 1`, mca_y = `Dim 2`)
+df_anth_corresp2 <- bind_cols(df_anth, df_anth_mca_coord)
+```
+
+```{r}
+df_anth_corresp2 |> 
+  ggplot(aes(mca_x, mca_y, label = name_alt_short, colour = d)) +
+  geom_point() +
+  geom_text_repel(
+    aes(label = name_alt_short), 
+    max.overlaps = 30, 
+    min.segment.length = .3,
+    size = 2.5,
+    family = "Fira Code",
+    # colour = "white",
+    fontface = "bold", # not working?
+    # segment.color = "black"
+    ) +
+    scale_colour_viridis_c(trans = "log10", direction = -1) +
+  xlab(paste0("Dimension 1 (", anth_corresp_dim1_ev |> round(digits = 1), "%)")) +
+  ylab(paste0("Dimension 2 (", anth_corresp_dim2_ev |> round(digits = 1), "%)")) +
+  theme_bw(base_family = "Fira Code") +
+    guides(fill = guide_colourbar(barwidth = 15, barheight = .3), direction = "horizontal") +
+   theme(legend.direction = "horizontal", legend.position = c(0.15, 0.1),
+         panel.grid = element_blank())
+ggsave(filename = "output/anth_correspXY3.pdf", 
+         device = cairo_pdf,
+         dpi = 300,
+         unit = "mm",
+       height = 100 , # pixelsでのサイズ
+       width = 150,  # pixelsでのサイズ
+       limitsize = FALSE)
+```
+
+
+
+## cluster
+
+```{r}
+df_fviz_wss <- df_anth_corresp |> 
+  select(-name_alt_short) |> 
+  fviz_nbclust(FUN = hcut, method = "wss", k.max = 30)
+
+df_fviz_wss2 <- df_fviz_wss$data |> 
+  mutate(clusters = as.numeric(clusters))
+df_fviz_wss2 |>   
+  ggplot(aes(clusters, y)) +
+  geom_line() +
+  # geom_point() +
+  ylab("Total WSS") +
+  xlab("No of clusters k") +
+  theme_classic(base_family = "Fira Code")
+
+  ggsave(filename = "output/anth_elbow.pdf", 
+         device = cairo_pdf,
+         dpi = 450,
+         unit = "mm",
+       height = 50, # pixelsでのサイズ
+       width = 75,  # pixelsでのサイズ
+       limitsize = FALSE)
+```
+
+
+```{r}
+fviz_sil <- df_anth_corresp |> 
+  select(-name_alt_short) |> 
+  fviz_nbclust(FUN = hcut, method = "silhouette", k.max = 30)
+df_fviz_sil <- fviz_sil$data |> 
+  mutate(clusters = as.numeric(clusters))
+fviz_sil
+df_fviz_sil |>   
+  ggplot(aes(clusters, y)) +
+  geom_line() +
+  geom_vline(xintercept = 5, linetype = "dashed", colour = "gray90") + # 5 = derived from fviz_sil plot
+  ylab("Avg sil width") +
+  xlab("No of clusters k") +
+  theme_classic(base_family = "Fira Code")
+  ggsave(filename = "output/anth_sil.pdf", 
+         device = cairo_pdf,
+         dpi = 450,
+         unit = "mm",
+       height = 50, # pixelsでのサイズ
+       width = 75,  # pixelsでのサイズ
+       limitsize = FALSE)
+```
+
+
+##  compare with UPGMA
+
+
+```{r}
+
+anth_dist <- df_anth_corresp |> 
+  select(-name_alt_short) |> 
+  dist(method = "binary")
+
+anth_upgma <- anth_dist |> 
+  hclust(method = "average") # average = UPGMA
+
+# dendro
+# anth_upgma_dendrogram <- anth_upgma_cluster |> 
+#   as.dendrogram() |> 
+#   dendro_data(type = "rectangle")
+# anth_upgma_dendrogram$labels$label <- df_anth_corresp2$name_alt_short
+
+# tree
+anth_upgma_tree <- anth_upgma |> 
+  as.phylo() 
+
+
+anth_upgma_tree$tip.label <- df_anth_corresp$name_alt_short |> as.character()
+# anth_upgma_tree |> 
+#   plot.phylo(type = "u", use.edge.length = FALSE, lab4ut="axial")
+
+anth_upgma_tree |> 
+  plot.phylo(type = "u", use.edge.length = TRUE, lab4ut="axial")
+```
+
+### plot
+
+```{r}
+ggplot() +
+  geom_segment(data = anth_upgma_dendrogram$segment, aes(x, y, xend = xend, yend = yend)) + 
+  coord_flip() + 
+  geom_text(data = anth_upgma_dendrogram$label, aes(x, y, label = label), hjust = 0, nudge_y = .05, size = 2, family = "Fira Code") +
+  scale_y_reverse(expand = c(0.2, 0)) +
+  theme_dendro()
+
+```
+
+## upgma tree
+
+```{r}
+
+before_1900 <- df_anth |> 
+  filter(year < 1900) |> pull(name_alt_short) |> as.character()
+
+
+# see edge num to group them?
+anth_upgma_tree |> 
+  groupOTU(.node = before_1900) |> 
+  ggtree(layout = "daylight", aes(colour = group)) +
+  geom_tiplab(family = "Fira Code") 
+```
+
+## nj tree
+
+
+やはり[binary距離でいいのかなぁ](http://rmecab.jp/wiki/index.php?R_Divisive_Clustering_diana%B4%D8%BF%F4%A4%C8nj%B4%D8%BF%F4)
+
+
+```{r}
+tree_anth_nj <- 
+  df_anth_corresp |> 
+  select(-name_alt_short) |> 
+  dist(method = "euclidian") |> # binary = Jaccard, prob method = "euclidian"
+  nj() 
+tree_anth_nj$tip.label <-  df_anth_corresp$name_alt_short |> as.character()
+tree_anth_nj <- tree_anth_nj |>   
+  groupOTU(.node = before_1900)
+
+tree_anth_nj |>  
+  ggtree(layout = "equal_angle", aes(colour = group)) +
+  geom_tiplab(family = "Fira Code", size = 2) +
+  coord_cartesian(clip = 'off') +
+  theme_tree(plot.margin=margin(80, 80, 80, 80))
+```
+
+
+## nn
+
+```{r}
+anth_dist |> 
+  neighborNet() |> 
+  plot(edge.width = 1)
+
+```
+## splits network
+
+超重い。
+
+```{r}
+df_anth_corresp[1:5, ] |> 
+  dist(method = "binary") |> 
+  splitsNetwork() |> 
+  as.networx() |> 
+  plot("2D")
+```
+
+

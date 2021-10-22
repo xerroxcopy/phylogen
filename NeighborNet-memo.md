@@ -90,7 +90,7 @@ Deltaは調べられるがどれも対して変わらんな。
 
 Split Decompositionてどうなんだろう。
 https://wiki.duke.edu/display/AnthroTree/10.2+Split+decomposition+methods
-Shennanがやってるやつ、PCAっぽいんだけど。。。
+Shennanがやってるやつ、PCAっぽいんだけど。。。仰韶文化
 
 ## 考察
 

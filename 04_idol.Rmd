@@ -1,0 +1,81 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# idol
+
+## dataframe
+
+グループ名から年・月を復元する。ピリオドで分けたい場合は`"[.]"`を使う。外群などは1996には出現していたので開始年である1996とした。グループ名のリコードなども一気に行う。
+
+```{r}
+df_idol <- data_idol_raw |> 
+  separate(ID, c("group", "year", "month"),
+           sep = "[.]") |> 
+  mutate_if(is.character, list(~na_if(., ""))) |> 
+  replace_na(list(year = "1996", month = "1")) |>
+  mutate(
+    year = as.numeric(year),
+      month = as.numeric(month),
+      date = ym(paste0(year, "-", month)),
+      group = recode(
+        group, 
+        smap = "SMAP",
+        Kinki = "KinKi Kids", 
+        Taki = "タッキー＆翼",
+        arashi = "嵐",
+        eito = "関ジャニ∞",
+        News = "NEWS",
+        `kat-tun` = "KAT-TUN",
+        jump = "Hey! Say! JUMP", 
+        sexyzone = "Sexy Zone",
+        `abc-z` = "A.B.C-Z",
+        kismy = "Kis-My-Ft2",
+        Jr = "ジャニーズJr.",
+        common = "事務所共通",
+        yuudoubou = "outgroup_誘導棒",
+        KingBlade = "outgroup_キングブレード",
+        Twice = "outgroup_TWICE")
+       ) 
+```
+
+## plot chronology
+
+[reorder](https://www.r-graph-gallery.com/267-reorder-a-variable-in-ggplot2.html)
+
+```{r message=FALSE, warning=FALSE}
+df_idol_chronology <- df_idol |> 
+  filter(!str_detect(group, "outgroup")) |> 
+  mutate(group = factor(group))
+  
+chronology <- df_idol_chronology |> 
+  mutate(group = fct_reorder(group, date, min)) |> 
+  ggplot(aes(x = date, y = group)) +
+  geom_density_ridges_gradient(
+    aes(fill = stat(x)),
+    scale = 0.8,
+    rel_min_height = 0.03,
+    jittered_points = TRUE,
+    position = position_points_jitter(width = 0.05, height = 0),
+    point_shape = '|', point_size = 3, point_alpha = 1, alpha = 0.2) +
+  scale_fill_viridis_c(limits = c(ym("1995-1"), ym("2018-1"))) +
+  coord_cartesian(xlim = c(ym("1996-1"), ym("2017-1"))) +
+  xlab("発売年") +
+  theme_bw(base_family = "YuGothic" ) +
+  theme(legend.position = "none") 
+
+chronology
+```
+
+### save chronology
+```{r, dev="ragg_png"}
+chronology |> 
+  ggsave(filename = "output/chronology.pdf", 
+         device = cairo_pdf,
+         dpi = 450,
+         unit = "mm",
+       height = 50*1.3 , # pixelsでのサイズ
+       width = 75*1.3,  # pixelsでのサイズ
+       limitsize = FALSE)
+```
