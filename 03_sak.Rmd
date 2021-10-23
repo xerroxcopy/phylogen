@@ -279,12 +279,15 @@ sak_nj |>
 
 ## join traits
 
-### UPGMA
-
 ```{r}
 df_sak_rowid <- df_sak |>
   rowid_to_column(var = "node") |> 
   mutate(node = node |> as.integer())
+```
+
+### UPGMA
+
+```{r}
 df_sak_upgma <- sak_upgma |>
   as_tibble() |> 
   left_join(df_sak_rowid, by = "node") |> 
@@ -412,7 +415,7 @@ sak_upgma2 |>
 
 ### NJ
 
-```{r fig.width = 9, fig.height=9, warning=FALSE}
+```{r fig.width =3, fig.height=3, warning=FALSE}
 sak_nj2 |> 
   ggtree(layout = "ape", aes(colour = weight)) +
   geom_tiplab(aes(label = paste0(class, label),), family = "Fira Code", size = 3, hjust = -.3) + # model name (e.g., Explorer)
@@ -460,11 +463,14 @@ df_sak_factor_with_name <- df_sak_factor |>
   relocate(name)
 
 phyDat_sak <-
-  df_sak_factor_with_name |>
+  df_sak_factor_with_name |> 
+  rownames_to_column() |> 
+  pivot_longer(-name, 'variable', 'value') |> 
+  pivot_wider(variable, name) |> 
+  filter(variable != "rowname") |> 
   mutate(across(everything(), as.character)) |> 
-  column_to_rownames(var = "name") |> 
+  column_to_rownames(var = "variable") |>
   phyDat(type = "USER", levels = c("0", "1")) 
-phyDat_sak |> View()
 ```
 
 
@@ -473,28 +479,53 @@ phyDat_sak |> View()
 
 plot isn't really good. use SplitsTree4 using write.nexus()?
 
-```{r}
+```{r fig.width = 5, fig.height=5}
 sak_dist2 <- phyDat_sak |> dist.hamming() # must be phyDat
-  
-nn_sak <- sak_dist |> 
-  neighborNet()
-nn_sak2 <- sak_dist2 |> 
-  neighborNet()
-nn_sak |> plot()
-nn_sak2 |> plot()
-nn_sak2 |> ggsplitnet(aes(x, y)) +
-  geom_splitnet(layout = "unrooted") +
-  geom_tiplab()
+sak_nn <- sak_dist2 |> 
+  neighborNet() # takes 30sec
+
+df_sak_nn <- sak_nn |> 
+  as_tibble() |> 
+  left_join(df_sak_rowid, by = "node") |> 
+  select(parent:class, short_name, Functions, width, weight, id) |> 
+  rowid_to_column() |> 
+  mutate(short_name = if_else(is.na(short_name), rowid |> as.character(), short_name)) |> 
+  column_to_rownames(var = "short_name") |>
+  mutate(node = node |> as.numeric()) |>
+  select(node, class, id, Functions, weight, width)
+sak_nn2 <- full_join(sak_nn, df_sak_nn, by = "node")
+```
+
+### plot NN
+
+```{r fig.width = 5, fig.height=5}
+sak_nn |> ggsplitnet(aes(x, y))+
+  geom_splitnet(size = .1) +
+  geom_tiplab2(data =  df_sak_nn, aes(colour = class), size = 2, family = "Fira Code") +
+  theme_tree() +
+  xlim(-.25, .35) +
+  ylim(-.25,.25)
+ggsave(filename = "output/sak_nn.pdf", 
+       device = cairo_pdf,
+       dpi = 450,
+       unit = "mm",
+       height = 360, # pixelsでのサイズ
+       width = 360,  # pixelsでのサイズ
+       limitsize = FALSE)
+```
+
+
+```{r fig.width = 5, fig.height=5}
 getwd()
 df_sak_factor_with_name |> 
   write_tsv("./data/sak_factor_for_mesquite_nex.tsv")
 sak_nj |> write.nexus("data/sak_factor.nex")
 ```
 ```{r}
-data(yeast, package="phangorn")
-dm <- phangorn::dist.ml(yeast)
-nnet <- phangorn::neighborNet(dm)
-ggplot(nnet, aes(x, y))  + geom_splitnet() + theme_tree()
+# data(yeast, package="phangorn")
+# dm <- phangorn::dist.ml(yeast)
+# nnet <- phangorn::neighborNet(dm)
+
 ```
 
 

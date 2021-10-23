@@ -8,7 +8,7 @@ output: html_notebook
 ライブラリをロード
 
 ```{r echo=FALSE, message=FALSE, results='hide'}
-library(MASS) # corresp analysis for sak. load before tidyverse so that it won't mask select from dplyr
+# library(MASS) # corresp analysis for sak. load before tidyverse so that it won't mask select from dplyr
 library(tidyverse)
 library(googlesheets4)
 library(lubridate)
@@ -34,8 +34,12 @@ library(cultevo) # hamming distance ("uncorrectedP" in splitsTree4)
 library(phytools) # fastAnc
 # names(quartzFonts())
 # remotes::install_github("KlausVigo/ggnetworx")
-library(ggnetworx) # plot networx
-
+# library(ggnetworx) # plot networx. is this identical to tanggle?
+# if (!requireNamespace("BiocManager", quietly = TRUE))
+#     install.packages("BiocManager")
+# 
+# BiocManager::install("tanggle")
+library(tanggle) # https://klausvigo.github.io/tanggle/articles/tanggle_vignette.html
 ```
 
 ```{r}
