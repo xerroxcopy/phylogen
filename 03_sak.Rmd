@@ -63,30 +63,44 @@ df_sak |>
 
 data
 https://www1.doshisha.ac.jp/~mjin/R/Chap_26/26.html
+use FactoMineR instead of MASS to get eigen values
 
 ```{r fig.width=5, figh.height = 3}
-df_sak_corresp <- df_sak |> 
+
+df_sak_factor <- df_sak |> 
   # filter(Price ) |> # remove swissChampXAVT
   select(Layer1:`MAT_Scale:BrassWood`) |> 
   mutate(across(everything(), as.factor))
-View(df_sak_corresp)
-sak_mca <- mca(df_sak_corresp)
+sak_mca <- MCA(df_sak_factor, ncp = 2, graph = TRUE)
 
-sak_mca |> summary()
-
-df_sak_mca_rs <- sak_mca$rs |>
+df_sak_mca_coord <- sak_mca$ind$coord |> 
   as_tibble() |> 
-  transmute(mca_x = `1`, mca_y = `2`)
-df_sak_corresp2 <- bind_cols(df_sak, df_sak_mca_rs)
+  transmute(mca_x = `Dim 1`, mca_y = `Dim 2`)
+
+
+# http://www.sthda.com/english/articles/31-principal-component-methods-in-r-practical-guide/114-mca-multiple-correspondence-analysis-in-r-essentials/
+# extract eigen value
+sak_corresp_eigen_values <- get_eigenvalue(sak_mca)
+# check eigen v
+fviz_screeplot(sak_mca, addlabels = TRUE, ylim = c(0, 20))
+
+# variance explained by dim1 and dim2 are:
+# they are later used in the ggplot
+sak_corresp_dim1_ev <- sak_corresp_eigen_values[1, 2]
+sak_corresp_dim2_ev <- sak_corresp_eigen_values[2, 2]
+
+# coordinates
+df_sak_factor2 <- bind_cols(df_sak, df_sak_mca_coord)
+
 ```
 
 
 #### all corresp
 
 ```{r}
-df_sak_corresp2 |>
-  ggplot(aes(mca_x *1e5, mca_y * 1e5, label = short_name, colour = weight)) +
-  # geom_point(data = df_sak_corresp2 |> select(-class), colour = "grey70") +
+df_sak_factor2 |>
+  ggplot(aes(mca_x, mca_y, label = short_name, colour = weight)) +
+  # geom_point(data = df_sak_factor2 |> select(-class), colour = "grey70") +
   geom_text(aes(label = class),
             family = "Alte DIN 1451 Mittelschrift",
             fontface = "bold"
@@ -103,15 +117,15 @@ df_sak_corresp2 |>
     segment.colour = NA
     
     ) +
-  scale_colour_viridis_c() +
+  scale_colour_viridis_c(trans = "log10") +
   scale_size_area() +
   # labs(colour = "Price (1k yen)" ) +
-  xlab("Dimension 1") +
-  ylab("Dimension 2") +
+  xlab(paste0("Dimension 1 (", sak_corresp_dim1_ev |> round(digits = 1), "%)")) +
+  ylab(paste0("Dimension 2 (", sak_corresp_dim2_ev |> round(digits = 1), "%)")) +
   theme_bw(base_family = "Fira Code") +
   theme(panel.background = element_rect(fill = "white", colour = "black")) +
   guides(colour = guide_colourbar(barwidth = 5, barheight = .5), direction = "horizontal") +
-  theme(legend.direction = "horizontal", legend.position = "bottom",
+  theme(legend.direction = "horizontal", legend.position = c(0.8, 0.9),
         panel.grid = element_blank())
 
 
@@ -127,10 +141,10 @@ ggsave(filename = "output/sak_correspXY_all.pdf",
 
 
 #### facet grid
-```{r fig.width=5, figh.height = 3}
-df_sak_corresp2 |>
+```{r fig.width=5, fig.height = 3}
+df_sak_factor2 |>
   ggplot(aes(mca_x, mca_y, label = short_name, colour = Price / 1000)) +
-  geom_point(data = df_sak_corresp2 |> select(-class), colour = "grey70") +
+  geom_point(data = df_sak_factor2 |> select(-class), colour = "grey70") +
     geom_point() +
   geom_text_repel(
     # force = .3,
@@ -174,7 +188,7 @@ https://uc-r.github.io/hc_clustering
 ```{r}
 
 
-df_fviz_wss <- df_sak_corresp |> 
+df_fviz_wss <- df_sak_factor |> 
   fviz_nbclust(FUN = hcut, method = "wss", k.max = 30)
 
 df_fviz_wss2 <- df_fviz_wss$data |> 
@@ -197,7 +211,7 @@ df_fviz_wss2 |>
 ```
 
 ```{r}
-fviz_sil <- df_sak_corresp |> 
+fviz_sil <- df_sak_factor |> 
   fviz_nbclust(FUN = hcut, method = "silhouette", k.max = 30)
 df_fviz_sil <- fviz_sil$data |> 
   mutate(clusters = as.numeric(clusters))
@@ -227,12 +241,12 @@ ggsave(filename = "output/sak_sil.pdf",
 ### jaccard (dont use)
 
 ```{r}
-sak_dist_jaccard <- dist(df_sak_corresp, method = "binary")
+sak_dist_jaccard <- dist(df_sak_factor, method = "binary")
 sak_upgma_jaccard <- sak_dist_jaccard |>
   hclust(method = "average")  # average = UPGMA
 sak_upgma_tree_jaccard <- sak_upgma_jaccard |> 
    as.phylo()
-sak_upgma_tree_jaccard$tip.label <- paste0(df_sak_corresp2$class, df_sak_corresp2$short_name)
+sak_upgma_tree_jaccard$tip.label <- paste0(df_sak_factor2$class, df_sak_factor2$short_name)
 sak_upgma_tree_jaccard |> 
   plot.phylo(type = "u", use.edge.length = TRUE, lab4ut = "axial")
 
@@ -245,7 +259,7 @@ sak_upgma_tree_jaccard |>
 SplitsTree4のUncorrectedPがHamming距離らしいので、{cultevo}を使ってHamming距離を算出する。しかし全然違う結果になる・・・なぜ？
 
 ```{r}
-sak_dist <- hammingdists(df_sak_corresp) # 5sec. sometimes it's finished very fast but it means it's not running...? in that case, restart R
+sak_dist <- hammingdists(df_sak_factor) # 5sec. sometimes it's finished very fast but it means it's not running...? in that case, restart R
 
 sak_upgma <- sak_dist |>
   hclust(method = "average") |> # average = UPGMA
@@ -279,7 +293,7 @@ df_sak_upgma <- sak_upgma |>
  column_to_rownames(var = "short_name") |> 
   mutate(node = node |> as.numeric()) |> 
   select(node, class, id, Functions, weight, width) # temporarily limite
-sak_upgma_tree$tip.label <- df_sak$short_name
+sak_upgma$tip.label <- df_sak$short_name
 ```
 
 ### NJ
@@ -393,18 +407,12 @@ sak_upgma2 |>
     legend.key.size = unit(2, 'mm'),
     ) 
 
-ggsave(filename = "output/sak_upgma_hamming.pdf", 
-       device = cairo_pdf,
-       dpi = 450,
-       unit = "mm",
-       height = 100, # pixelsでのサイズ
-       width = 160,  # pixelsでのサイズ
-       limitsize = FALSE)
+
 ```
 
 ### NJ
 
-```{r fig.width = 9, fig.height=5, warning=FALSE}
+```{r fig.width = 9, fig.height=9, warning=FALSE}
 sak_nj2 |> 
   ggtree(layout = "ape", aes(colour = weight)) +
   geom_tiplab(aes(label = paste0(class, label),), family = "Fira Code", size = 3, hjust = -.3) + # model name (e.g., Explorer)
@@ -418,7 +426,7 @@ sak_nj2 |>
     plot.margin=margin(120, 40, 40, 40), 
   ) +
   theme(
-    legend.position = c(0.15, .5),
+    legend.position = c(.1, .9),
     legend.key.size = unit(2, 'mm'),
     ) 
 
@@ -445,19 +453,49 @@ sak_nj2 |>
 
 
 
+create phyDat data for categorical phenotype reconstruction
 ```{r}
-phyDatdat_sak <-
-  df_sak_corresp |>
-  mutate(across(everything(), as.integer)) |> 
-  rownames_to_column() |> 
-  pivot_longer(-rowname, 'variable', 'value') |> 
-  pivot_wider(variable, rowname) 
-phyDatdat_sak |> phyDat(type = "USER", levels = c("1", "2"))  |> View()
+df_sak_factor_with_name <- df_sak_factor |> 
+  mutate(name = df_sak$short_name) |> 
+  relocate(name)
 
-as.phyDat() |> View()
-  
-phyDat_sak
-
-  baseFreq()
+phyDat_sak <-
+  df_sak_factor_with_name |>
+  mutate(across(everything(), as.character)) |> 
+  column_to_rownames(var = "name") |> 
+  phyDat(type = "USER", levels = c("0", "1")) 
+phyDat_sak |> View()
 ```
+
+
+
+### neighbornet
+
+plot isn't really good. use SplitsTree4 using write.nexus()?
+
+```{r}
+sak_dist2 <- phyDat_sak |> dist.hamming() # must be phyDat
+  
+nn_sak <- sak_dist |> 
+  neighborNet()
+nn_sak2 <- sak_dist2 |> 
+  neighborNet()
+nn_sak |> plot()
+nn_sak2 |> plot()
+nn_sak2 |> ggsplitnet(aes(x, y)) +
+  geom_splitnet(layout = "unrooted") +
+  geom_tiplab()
+getwd()
+df_sak_factor_with_name |> 
+  write_tsv("./data/sak_factor_for_mesquite_nex.tsv")
+sak_nj |> write.nexus("data/sak_factor.nex")
+```
+```{r}
+data(yeast, package="phangorn")
+dm <- phangorn::dist.ml(yeast)
+nnet <- phangorn::neighborNet(dm)
+ggplot(nnet, aes(x, y))  + geom_splitnet() + theme_tree()
+```
+
+
 

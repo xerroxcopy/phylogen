@@ -98,8 +98,6 @@ df_anth_corresp <- df_anth |>
 anth_mca <- MCA(df_anth_corresp, ncp = 5, graph = TRUE)
 fviz_screeplot(anth_mca, addlabels = TRUE, ylim = c(0, 45))
 
-df_anth_mca_coord <- get_mca_var(anth_mca)$coord[1:nrow(df_anth), ] |> as_tibble()
-
 
 # http://www.sthda.com/english/articles/31-principal-component-methods-in-r-practical-guide/114-mca-multiple-correspondence-analysis-in-r-essentials/
 # extract eigen value
@@ -112,7 +110,8 @@ anth_corresp_dim1_ev <- anth_corresp_eigen_values[1, 2]
 anth_corresp_dim2_ev <- anth_corresp_eigen_values[2, 2]
 
 # coordinates
-df_anth_mca_coord <- get_mca_var(anth_mca)$coord[1:nrow(df_anth), ] |> 
+# used to be get_mca_var(anth_mca)$coord[1:nrow(df_anth), ] but extremely wrong
+df_anth_mca_coord <- anth_mca$ind$coord |>
   as_tibble() |> 
   transmute(mca_x = `Dim 1`, mca_y = `Dim 2`)
 df_anth_corresp2 <- bind_cols(df_anth, df_anth_mca_coord)
