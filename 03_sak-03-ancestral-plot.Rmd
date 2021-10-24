@@ -1,0 +1,203 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+## join tree with df
+
+```{r}
+sak_upgma3 <- full_join(sak_upgma_modern, df_sak_upgma_modern, by = "node")
+sak_nj3 <- full_join(sak_nj_modern, df_sak_nj_modern, by = "node") |> 
+  mutate(id = if_else(is.na(id), paste0("node", node), id)) # unrooted
+# sak_nj4 <- full_join(sak_nj_modern_rooted, df_sak_nj_modern, by = "node") |> 
+#   mutate(id = if_else(is.na(id), paste0("node", node), id)) # rooted at around middle 
+```
+# length ~ weight predict
+
+plot all, hilight OLD, 
+
+```{r}
+df_sak_nj_modern |> 
+ mutate(id = if_else(is.na(id), paste0("node", node), id)) |> 
+  filter(id != "91SwissChampXAVT") |> 
+  ggplot(aes(width, weight, colour = class)) +
+  geom_text(aes(label = id)) +
+  scale_colour_viridis_c(trans = "log10") +
+  theme_bw()
+```
+# in phylo tree, width, weight, (functions), class ~ upgma, nj
+
+radial? 
+
+
+
+```{r}
+sak_nj3 |> 
+  ggtree() +
+  geom_tree() +
+  geom_tiplab() +
+  geom_nodelab(aes(label = node), family = "Fira Code", size = 2) 
+
+```
+
+```{r}
+df_sak_old <- df_sak |> filter(str_detect(short_name, pattern = "OLD")) 
+  # doesn't have to be nj but who cares
+```
+
+
+## phenogram plot and cowplot
+
+classは離散的すぎるので興味深くないのでパスした
+
+
+
+
+## phenogram plot
+
+```{r}
+aspect_ratio <- .67
+theme_phenogram <-  
+  theme(
+    legend.position = c(0.2, .9), 
+    legend.key.size = unit(2, 'mm'), 
+    legend.background = element_blank(),
+    legend.text = element_text(size= 4),
+    legend.title = element_text(size = 4),
+    panel.grid = element_blank(), 
+    aspect.ratio = aspect_ratio, 
+    panel.border = element_blank()
+        ) 
+plot_sak_pheno_weight_nj <-
+  sak_nj3 |>
+  ggtree(aes(colour = width), continuous = "colour", yscale = "weight") +
+  geom_text(
+    data = df_sak_old, 
+    aes(x = 0, y = weight, label = introduced), 
+    size = 2, 
+    family = "Fira Code",
+  ) +
+  scale_colour_viridis_c(trans="log10", option = "A") +
+  scale_y_continuous(trans = "log10") +
+  expand_limits(x = -1) +
+  theme_bw(base_family = "Fira Code") +
+  theme_phenogram
+
+plot_sak_pheno_weight_upgma <-
+  sak_upgma3 |> 
+  ggtree(aes(colour = width), continuous = "colour", yscale = "weight") +
+  geom_text(
+    data = df_sak_old, 
+    aes(x = 0, y = weight, label = introduced), 
+    size = 2, 
+    family = "Fira Code",
+
+  ) +
+  scale_colour_viridis_c(trans="log10", option = "A") +
+  scale_y_continuous(trans = "log10") +
+  ylab("weight (g)") +
+  expand_limits(x = -1) +
+  theme_bw(base_family = "Fira Code") +
+  theme_phenogram
+
+# width
+
+## NJ
+plot_sak_pheno_width_nj <-
+  sak_nj3 |> 
+  ggtree(aes(colour = weight), continuous = "colour", yscale = "width") +
+  geom_text(
+    data = df_sak_old, 
+    aes(x = 0, y = width,label = introduced), 
+    size = 2, 
+    family = "Fira Code",
+
+    ) +
+  scale_colour_viridis_c(trans="log10") +
+  scale_y_continuous(trans = "log10") +
+  expand_limits(x = -1) +
+  theme_bw(base_family = "Fira Code") +
+  theme_phenogram
+
+## UPGMA
+
+plot_sak_pheno_width_upgma <-
+  sak_upgma3 |> 
+  ggtree(aes(colour = weight), continuous = "colour", yscale = "width") +
+geom_text(
+    data = df_sak_old, 
+    aes(x = 0, y = width,label = introduced), 
+    size = 2, 
+    family = "Fira Code",
+
+    ) + 
+  scale_colour_viridis_c(trans="log10") +
+  scale_y_continuous(trans = "log10") +
+  ylab("width (mm)") +
+  expand_limits(x = -1) +
+  theme_bw(base_family = "Fira Code") +
+   theme_phenogram
+
+# Functions
+
+## NJ
+
+plot_sak_pheno_Functions_nj <-
+  sak_nj3 |> 
+  ggtree(aes(colour = weight), continuous = "colour", yscale = "Functions") +
+  geom_text(
+    data = df_sak_old, 
+    aes(x = 0, y = Functions,label = introduced), 
+    size = 2, 
+    family = "Fira Code",
+
+    ) +
+  scale_colour_viridis_c(trans="log10") +
+    scale_y_continuous(trans = "log10") +
+  xlab("genetic distance") +
+  expand_limits(x = -1) +
+  theme_bw(base_family = "Fira Code") +
+   theme_phenogram
+## UPGMA
+plot_sak_pheno_Functions_upgma <-
+  sak_upgma3 |> 
+  ggtree(aes(colour = weight), continuous = "colour", yscale = "Functions") +
+  geom_text(
+    data = df_sak_old, 
+    aes(x = 0, y = Functions,label = introduced), 
+    size = 2, 
+    family = "Fira Code",
+
+    ) +
+  scale_colour_viridis_c(trans="log10") +
+    scale_y_continuous(trans = "log10") +
+  ylab("functions") +
+  
+  xlab("time") +
+  expand_limits(x = -1) +
+  theme_bw(base_family = "Fira Code") +
+   theme_phenogram
+```
+
+### cowplot
+
+```{r fig.width = 4, fig.height = 4}
+plot_grid(  
+  plot_sak_pheno_weight_upgma,
+  plot_sak_pheno_weight_nj,  
+  plot_sak_pheno_width_upgma,
+  plot_sak_pheno_width_nj,
+  plot_sak_pheno_Functions_upgma,
+  plot_sak_pheno_Functions_nj,
+  align = "hv",
+  ncol=2, labels=LETTERS)   
+ggsave(filename = "output/sak_pheno.pdf", 
+       device = cairo_pdf,
+       dpi = 450,
+       unit = "mm",
+       height = 190, # pixelsでのサイズ
+       width = 166,  # pixelsでのサイズ
+       limitsize = FALSE)
+```
+
+

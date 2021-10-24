@@ -1,0 +1,455 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# continuous ancestral phenotype reconstruction using fastAnc
+
+filter out obsolete products and leave models available in 2016
+
+would NJ reconstruct ancestral state better than UPGMA without OLD data?
+
+```{r}
+df_sak_modern <- df_sak |> 
+  filter(!str_detect(short_name, pattern = "OLD")) |> 
+  mutate(node = node |> as.integer())
+
+# filter only 0/1 categorical variables
+df_sak_factor_modern <- df_sak_modern |> 
+  select(Layer1:`MAT_Scale:BrassWood`) |> 
+  mutate(across(everything(), as.factor))
+sak_dist_modern <- hamming.distance(df_sak_factor_modern |> as.matrix()) |> as.dist()
+# hammingdists is too buggy so changing to hamming.distance in e1071
+# sak_dist_modern <- df_sak_factor_modern |> 
+#   hammingdists() # 5sec
+
+```
+
+## construct UPGMA and NJ trees
+
+### UPGMA
+
+```{r}
+sak_upgma_modern <- sak_dist_modern |>
+  hclust(method = "average") |> # average = UPGMA
+   as.phylo()
+df_sak_upgma_modern <- sak_upgma_modern |>
+  as_tibble() |> 
+  left_join(df_sak_modern, by = "node") |> 
+  select(parent:class, short_name, Functions, width, weight, id) |> 
+    mutate(short_name = if_else(is.na(short_name), node |> as.character(), short_name)) |> 
+ column_to_rownames(var = "short_name") |> 
+  mutate(node = node |> as.numeric()) |> 
+  select(node, class, id, Functions, weight, width) # temporarily limite
+sak_upgma_modern$tip.label <- df_sak_modern$short_name
+```
+
+
+### NJ
+
+```{r fig.width = 8, fig.height = 8}
+sak_nj_modern <- sak_dist_modern |> 
+  nj() 
+sak_nj_modern$tip.label <- df_sak_modern$short_name
+sak_nj_modern |> plot()
+df_sak_nj_modern <- sak_nj_modern |> 
+  as_tibble() |> 
+  left_join(df_sak_modern, by = "node") |> 
+  select(parent:class, short_name, Functions, width, weight, id) |> 
+  mutate(short_name = if_else(is.na(short_name), node |> as.character(), short_name)) |> 
+  column_to_rownames(var = "short_name") |> 
+  mutate(node = node |> as.numeric()) |> 
+  select(node, class, id, Functions, weight, width)
+df_sak_modern |> View()
+
+View(df_sak_nj_modern)
+sak_nj_modern2 <- full_join(sak_nj_modern, df_sak_nj_modern, by = "node")
+
+sak_nj_modern2 |> 
+    ggtree(layout = "ape", aes(colour = weight)) +
+  geom_tiplab(aes(label = paste0(class, label),), family = "Fira Code", size = 3, hjust = -.3) + # model name (e.g., Explorer)
+  geom_tiplab(aes(label = weight |> round(0)), family = "Fira Code", size = 2, hjust = 1) + # weight of models
+  geom_nodelab(aes(label = weight |> round(0)), family = "Fira Code", size = 2, vjust = 1) + # estimated weights at nodes
+  geom_treescale() + 
+  scale_size_area(max_size = 5) +
+  scale_colour_viridis_c(limits = c(15, 206)) +
+  coord_cartesian(clip = 'off') +
+  theme_tree(
+    plot.margin=margin(120, 40, 40, 40), 
+  ) +
+  theme(
+    legend.position = c(.1, .9),
+    legend.key.size = unit(2, 'mm'),
+    ) 
+```
+
+
+
+## root
+
+NJについてはrootしたバージョンでfastAncをしたいので、まずRootをつける・・・と思っていたが、Rootをつけるところで恣意的にできてしまって中立な感じではないので、アルゴリズムにまかせてしまったほうがよい気がしてきた…とりあえずコードは遺しておく。
+
+どこにつけるのがよいか？
+
+#### show node numbers
+
+```{r fig.width = 5, fig.height = 5}
+sak_nj |> 
+  ggtree(layout = "ape") +
+  geom_tiplab() +
+  geom_nodelab(aes(label = node), colour = "red", size = 2)
+```
+
+```{r fig.width = 5, fig.height = 5}
+sak_nj_modern |> 
+  ggtree(layout = "ape") +
+  geom_tiplab() +
+  geom_nodelab(aes(label = node), colour = "red", size = 2)
+```
+
+一緒にプロットするとPioneerやFarmerのあたりだが、その情報がなければ中央付近、つまり71がよさそう
+
+#### root
+
+```{r}
+sak_nj_modern_rooted <- sak_nj_modern |> 
+  root(node = 71)
+sak_nj_modern_rooted |> plot()
+```
+# phytools fastAnc
+
+## kyoutsuu 
+
+#### modern, outgroup, old, everything
+
+```{r}
+# create a named number vector of weights (in gram) of SAKs
+sak_trait_weight <- df_sak |> 
+  select(weight) |> 
+  as.matrix()
+sak_trait_width <- df_sak |> 
+  select(width) |> 
+  as.matrix()
+sak_trait_class <- df_sak |> 
+  select(class) |> 
+  as.matrix()
+sak_trait_function <- df_sak |> 
+  select(Functions) |> 
+  as.matrix()
+# change the matrix into a vector, then cull unwanted nodes after 57
+sak_trait_weight_named_num <- sak_trait_weight[, 1][1:nrow(df_sak)]
+sak_trait_width_named_num <- sak_trait_width[, 1][1:nrow(df_sak)]
+sak_trait_class_named_num <- sak_trait_class[, 1][1:nrow(df_sak)]
+sak_trait_function_named_num <- sak_trait_function[, 1][1:nrow(df_sak)]
+```
+#### modern
+
+```{r}
+# create a named number vector of weights (in gram) of SAKs
+sak_trait_weight_modern <- df_sak_modern |> 
+  select(weight) |> 
+  as.matrix()
+sak_trait_width_modern <- df_sak_modern |> 
+  select(width) |> 
+  as.matrix()
+sak_trait_class_modern <- df_sak_modern |> 
+  select(class) |> 
+  as.matrix()
+sak_trait_function_modern <- df_sak_modern |> 
+  select(Functions) |> 
+  as.matrix()
+# change the matrix into a vector, then cull unwanted nodes after 57
+sak_trait_weight_modern_named_num <- sak_trait_weight_modern[, 1][1:nrow(df_sak_modern)]
+sak_trait_width_modern_named_num <- sak_trait_width_modern[, 1][1:nrow(df_sak_modern)]
+sak_trait_class_modern_named_num <- sak_trait_class_modern[, 1][1:nrow(df_sak_modern)]
+sak_trait_function_modern_named_num <- sak_trait_function_modern[, 1][1:nrow(df_sak_modern)]
+```
+
+## UPGMA
+
+
+now fit the data to nodes using UPGMA tree. dunno how to vectorize them so i just iterate it over weight, class, width, and function.
+
+#### modern, outgroup, old, everything
+
+```{r}
+sak_fit_upgma_weight <- fastAnc(
+  sak_upgma, 
+  sak_trait_weight_named_num,
+  vars = TRUE, 
+  CI = TRUE)
+df_sak_upgma$weight[(nrow(df_sak) + 1): nrow(df_sak_upgma)] <- sak_fit_upgma_weight$ace
+
+
+# fill NA (Officer, which I couldn't find ANY width data anywhere...)
+sak_trait_width_named_num[is.na(sak_trait_width_named_num)] <- 20.5 # borrow from old soldier knife
+sak_fit_upgma_width <- fastAnc(
+  sak_upgma, 
+  sak_trait_width_named_num,
+  vars = TRUE, 
+  CI = TRUE)
+df_sak_upgma$width[(nrow(df_sak) + 1): nrow(df_sak_upgma)] <- sak_fit_upgma_width$ace
+
+sak_fit_upgma_class <- fastAnc(
+  sak_upgma, 
+  sak_trait_class_named_num,
+  vars = TRUE, 
+  CI = TRUE)
+df_sak_upgma$class[(nrow(df_sak) + 1): nrow(df_sak_upgma)] <- sak_fit_upgma_class$ace
+
+sak_fit_upgma_function <- fastAnc(
+  sak_upgma, 
+  sak_trait_function_named_num,
+  vars = TRUE, 
+  CI = TRUE)
+df_sak_upgma$Functions[(nrow(df_sak) + 1): nrow(df_sak_upgma)] <- sak_fit_upgma_function$ace
+```
+
+#### modern
+
+```{r}
+sak_fit_upgma_weight_modern <- fastAnc(
+  sak_upgma_modern, 
+  sak_trait_weight_modern_named_num,
+  vars = TRUE, 
+  CI = TRUE)
+df_sak_upgma_modern$weight[(nrow(df_sak_modern) + 1): nrow(df_sak_upgma_modern)] <- sak_fit_upgma_weight_modern$ace
+
+sak_fit_upgma_width_modern <- fastAnc(
+  sak_upgma_modern, 
+  sak_trait_width_modern_named_num,
+  vars = TRUE, 
+  CI = TRUE)
+df_sak_upgma_modern$width[(nrow(df_sak_modern) + 1): nrow(df_sak_upgma_modern)] <- sak_fit_upgma_width_modern$ace
+
+sak_fit_upgma_class_modern <- fastAnc(
+  sak_upgma_modern, 
+  sak_trait_class_modern_named_num,
+  vars = TRUE, 
+  CI = TRUE)
+df_sak_upgma_modern$class[(nrow(df_sak_modern) + 1): nrow(df_sak_upgma_modern)] <- sak_fit_upgma_class_modern$ace
+
+sak_fit_upgma_function_modern <- fastAnc(
+  sak_upgma_modern, 
+  sak_trait_function_modern_named_num,
+  vars = TRUE, 
+  CI = TRUE)
+df_sak_upgma_modern$Functions[(nrow(df_sak_modern) + 1): nrow(df_sak_upgma_modern)] <- sak_fit_upgma_function_modern$ace
+```
+
+
+## NJ
+#### NJ modern, outgroup, old, everything
+
+```{r}
+sak_fit_nj_weight <- fastAnc(
+  sak_nj, 
+  sak_trait_weight_named_num,
+  vars = TRUE, 
+  CI = TRUE)
+df_sak_nj$weight[(nrow(df_sak) + 1): nrow(df_sak_nj)] <- sak_fit_nj_weight$ace
+
+
+# fill NA (Officer, which I couldn't find ANY width data anywhere...)
+sak_trait_width_named_num[is.na(sak_trait_width_named_num)] <- 20.5 # borrow from old soldier knife
+sak_fit_nj_width <- fastAnc(
+  sak_nj, 
+  sak_trait_width_named_num,
+  vars = TRUE, 
+  CI = TRUE)
+df_sak_nj$width[(nrow(df_sak) + 1): nrow(df_sak_nj)] <- sak_fit_nj_width$ace
+
+sak_fit_nj_class <- fastAnc(
+  sak_nj, 
+  sak_trait_class_named_num,
+  vars = TRUE, 
+  CI = TRUE)
+df_sak_nj$class[(nrow(df_sak) + 1): nrow(df_sak_nj)] <- sak_fit_nj_class$ace
+
+sak_fit_nj_function <- fastAnc(
+  sak_nj, 
+  sak_trait_function_named_num,
+  vars = TRUE, 
+  CI = TRUE)
+df_sak_nj$Functions[(nrow(df_sak) + 1): nrow(df_sak_nj)] <- sak_fit_nj_function$ace
+```
+
+#### NJ modern
+
+```{r}
+sak_fit_nj_weight_modern <- fastAnc(
+  sak_nj_modern, 
+  sak_trait_weight_modern_named_num,
+  vars = TRUE, 
+  CI = TRUE)
+df_sak_nj_modern$weight[(nrow(df_sak_modern) + 1): nrow(df_sak_nj_modern)] <- sak_fit_nj_weight_modern$ace
+
+sak_fit_nj_width_modern <- fastAnc(
+  sak_nj_modern, 
+  sak_trait_width_modern_named_num,
+  vars = TRUE, 
+  CI = TRUE)
+df_sak_nj_modern$width[(nrow(df_sak_modern) + 1): nrow(df_sak_nj_modern)] <- sak_fit_nj_width_modern$ace
+
+sak_fit_nj_class_modern <- fastAnc(
+  sak_nj_modern, 
+  sak_trait_class_modern_named_num,
+  vars = TRUE, 
+  CI = TRUE)
+df_sak_nj_modern$class[(nrow(df_sak_modern) + 1): nrow(df_sak_nj_modern)] <- sak_fit_nj_class_modern$ace
+
+sak_fit_nj_function_modern <- fastAnc(
+  sak_nj_modern, 
+  sak_trait_function_modern_named_num,
+  vars = TRUE, 
+  CI = TRUE)
+df_sak_nj_modern$Functions[(nrow(df_sak_modern) + 1): nrow(df_sak_nj_modern)] <- sak_fit_nj_function_modern$ace
+```
+
+
+
+# plot
+
+for modern ones and estimating the ancestors, go to sak-03-ancestral-plot.Rmd
+for all model, go to sak-04-all-model-plot.Rmd
+
+# categorical
+
+
+
+
+
+## ancestral states (sequence) reconstruction
+
+基本的には{phangorn}のParsimonyを使う方針でいく。本当はもっといい方法があるのかもしれないけど。
+https://rstudio-pubs-static.s3.amazonaws.com/345955_fba1ccbdcd8f424aa5505c15bfd75bf7.html これも使えるかも pratchet ちゃんとよんでない
+
+
+#### phangorn Parsimony
+
+phyDat化でdim()が70になっちゃうのはas.character()で回復できる。が、anc.mprはphyDatではない？ので回復できない。purrrのmapなどでmatrixをvectorにすることでできそう。やってない。
+
+```{r}
+phyDat_sak_modern <-
+ df_sak_factor_modern |> 
+  mutate(name = df_sak_modern$short_name) |> 
+  relocate(name) |> 
+  rownames_to_column() |> 
+  pivot_longer(-name, 'variable', 'value') |> 
+  pivot_wider(variable, name) |> 
+  filter(variable != "rowname") |> 
+  mutate(across(everything(), as.character)) |> 
+  column_to_rownames(var = "variable") |>
+  phyDat(type = "USER", levels = c("1", "0"), return.index = FALSE) 
+phyDat_sak_modern |> as.character()
+sak_acctran <- acctran(tree = sak_nj_modern, data = phyDat_sak_modern)
+
+sak_acctran |> 
+  parsimony(phyDat_sak)
+anc.acctran <- ancestral.pars(sak_acctran, phyDat_sak_modern, "ACCTRAN")
+anc.mpr <- ancestral.pars(sak_acctran, phyDat_sak_modern, "MPR")
+anc.acctran |> View()
+anc.mpr |> View()
+plotAnc(sak_acctran, anc.mpr, 14)
+anc.mpr$`83`
+a_model_name <- "Classic.AL"
+a_model_matrix <- anc.mpr[[a_model_name]]
+a_model_factor <- df_sak_modern |> 
+  filter(short_name == a_model_name) |> unlist(use.names = FALSE)
+a_model_factor_min <- a_model_factor[7:95] |> as.numeric()  
+a_model_factor_min |> length() # len 89
+# 0 1 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 1 1 1 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0
+# 0 1 0 0 0 0 0 0 1 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 1
+# 0 1 0 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 1
+phyDat_sak_modern |> image()
+allSitePattern(5, levels = c("a", "c", "g", "t"), names = NULL) |> View()
+anc.mpr$Classic.AL[, 1] 
+df_sak_factor_modern[,15:25] |> View()
+phyDat_sak_modern$Classic.AL |> length() # 70. does phyDat() drop uninformative traits?
+df_sak_factor_modern_min <- df_sak_factor_modern |> 
+  mutate(across(everything(), as.character )) |>
+  mutate(across(everything(), as.numeric)) |>
+  select(where(~sum(.) > 1)) |> 
+  select(where(~sum(.) < nrow(df_sak))) # |> 
+  mutate(short_name = df_sak_modern$short_name) |> 
+  relocate(short_name)
+df_sak_factor_modern_min[2,] |> unlist(use.names = FALSE)
+phyDat_sak_modern |> removeUndeterminedSites()
+phyDat_sak_modern |> View()
+```
+
+nodeの位置を確認
+
+```{r fig.width = 6, fig.height = 6}
+sak_nj2 |> 
+  ggtree(layout = "ape") +
+  geom_tiplab(aes(label = paste0(class, label),), family = "Fira Code", size = 3, hjust = -.3) + # model name (e.g., Explorer)
+  geom_nodelab(aes(label = node), family = "Fira Code", size = 2) + 
+  geom_tippoint() # 99, nearest = farmer
+
+# Farmerのいるあたりはどこ？
+
+sak_nj_modern2 |> 
+  ggtree(layout = "ape") +
+  geom_tiplab(aes(label = paste0(class, label),), family = "Fira Code", size = 3, hjust = -.3) + # model name (e.g., Explorer)
+  geom_nodelab(aes(label = node), colour = "red", family = "Fira Code", size = 2) +
+  geom_tippoint() # 82 or 84, near farmer cadet pioneer
+
+sak_upgma2 |> 
+    ggtree(layout = "ape") +
+  geom_tiplab(aes(label = paste0(class, label),), family = "Fira Code", size = 3, hjust = -.3) + # model name (e.g., Explorer)
+  geom_nodelab(aes(label = node), family = "Fira Code", size = 2) + 
+  geom_tippoint() # 71, nearest = Cadet pioneer Farmerの根本。Soldier 1961はFarmerとくまされている
+sak_upgma_modern |> 
+  ggtree(layout = "ape") +
+  geom_tiplab(aes(label = label), family = "Fira Code", size = 3, hjust = -.3) + # model name (e.g., Explorer)
+  geom_nodelab(aes(label = node), colour = "red", family = "Fira Code", size = 2) +
+  geom_tippoint() +# 82 or 84, near farmer cadet pioneer +
+  coord_cartesian(clip = 'off') +
+  theme_tree(
+    plot.margin=margin(120, 40, 40, 40), 
+  )
+```
+
+
+
+<https://www.phytools.org/eqg2015/asr.html> "discrete characters"は微妙。ひとつの形質に関して図示。これを何回も繰り返すべきなのかもしれないが。
+
+
+#### phangorn ML
+[phangorn](https://cran.r-project.org/web/packages/phangorn/vignettes/Ancestral.html)を使ってみるか？ATGCでなくてもできるとよいのだが。→MLだと少なくともシーケンスじゃないとダメかなぁ。
+```{r}
+# fit_sak_nj <- fastAnc(tree = sak_nj, x = phyDat_sak, vars = TRUE, CI = TRUE)
+fit_sak_nj <- pml(tree = sak_nj, data = phyDat_sak) |> 
+  optim.pml() # ... :D
+```
+
+
+
+RRPhyloのほうがいいのか？
+
+
+#### ace
+
+それとも[ace](https://rdrr.io/cran/ape/man/ace.html)なのか？
+
+```{r}
+sak_nj_rooted <- sak_nj |>
+  # root(outgroup = 40) |> 
+  multi2di() # to make it dichotomous as ace() requires
+# sak_nj_rooted$root.edge <- 0 # https://rdrr.io/cran/ape/man/root.html Examples
+ace(x = phyDat_sak, 
+    phy = sak_nj_rooted, # OLD.Soldier.1891
+    type = "discrete")
+```
+
+#### rerootingMethod
+
+それとも[phyTools](http://blog.phytools.org/2015/06/update-to-rerootingmethod-for-ancestral.html)の`rerootingMethod()`なのか？→これは
+
+> then rownames should be species names, column names should be states for the discrete character, and rows of the matrix should sum to 1.0.
+
+とあるのでダメかな
+```{r}
+rerootingMethod(sak_nj, x = phyDat_sak, model = "ER")
+```

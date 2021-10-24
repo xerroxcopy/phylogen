@@ -1,0 +1,35 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+sak_upgma4 <- full_join(sak_upgma, df_sak_upgma, by = "node") # rooted, full model
+sak_nj5 <- full_join(sak_nj, df_sak_nj, by = "node") |> 
+  mutate(id = if_else(is.na(id), paste0("node", node), id)) # unrooted, all
+
+```
+
+```{r fig.width = 5, fig.height = 5}
+# UPGMA is good for circular
+
+sak_upgma4 |> 
+  ggtree() +
+  geom_tree( aes(colour = class), continuous = "colour", size = 3) +
+  scale_colour_viridis_c(trans="log10") +
+  geom_tiplab(aes(colour = class, label = id), size = 2.5,nudge_x = .1) +
+  geom_treescale(x = 0.1, y = 30) +
+  expand_limits(x = 20) +
+  theme(legend.position = c(0.1, .9))
+
+
+sak_nj5 |> 
+  root(outgroup = 40) |> 
+  ggtree(size = 1) +
+  geom_tree(aes(colour = class), continuous = "colour", size = 1) +
+  scale_colour_viridis_c(trans="log10") +
+  geom_tiplab(aes(colour = class, label = id), size = 2.5,nudge_x = .1) +
+  geom_treescale(x = 0.1, y = 30) +
+  expand_limits(x = 20) +
+  theme(legend.position = c(0.1, .9))
+```

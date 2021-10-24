@@ -30,7 +30,7 @@ library(factoextra) # fviz_cluster
 # BiocManager::install("ggtree")
 library(phangorn) # neighbornet
 library(ggtree)
-library(cultevo) # hamming distance ("uncorrectedP" in splitsTree4)
+# library(cultevo) # hamming distance ("uncorrectedP" in splitsTree4)
 library(phytools) # fastAnc
 # names(quartzFonts())
 # remotes::install_github("KlausVigo/ggnetworx")
@@ -40,6 +40,9 @@ library(phytools) # fastAnc
 # 
 # BiocManager::install("tanggle")
 library(tanggle) # https://klausvigo.github.io/tanggle/articles/tanggle_vignette.html
+library(RRphylo) # https://cran.r-project.org/web/packages/RRphylo/vignettes/RRphylo.html
+library(cowplot) # ggally??
+library(e1071)
 ```
 
 ```{r}
@@ -57,7 +60,7 @@ knitr::opts_chunk$set(dev = "ragg_png")
 data_anth_raw <- read_sheet("https://docs.google.com/spreadsheets/d/1VZzjCMs21iBTIXoHR2Ph8wqyS8jQBlS4TDAmJXYjVKI/edit?usp=sharing", sheet = "anthropomorphic artefacts")
 data_sak_raw <- read_sheet("https://docs.google.com/spreadsheets/d/1VZzjCMs21iBTIXoHR2Ph8wqyS8jQBlS4TDAmJXYjVKI/edit?usp=sharing", sheet = "swiss army knives")
 data_idol_raw <- read_sheet("https://docs.google.com/spreadsheets/d/1VZzjCMs21iBTIXoHR2Ph8wqyS8jQBlS4TDAmJXYjVKI/edit?usp=sharing", sheet = "idol lightsticks")
-
+# data_sak_raw |> filter(short_name == "Farmer") |> select(KeyRing)
 ```
 
 

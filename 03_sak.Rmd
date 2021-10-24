@@ -3,28 +3,12 @@ title: "R Notebook"
 output: html_notebook
 ---
 
-
 # sak
-
-## overview
-
-```{r}
-data_sak_raw |> 
-  ggplot(aes(Layers)) +
-  geom_histogram(binwidth = 1)
-quantile(data_sak_raw$Layers, na.rm = TRUE) # 1,2,3,4,15
-quantile(data_sak_raw$class, na.rm = TRUE) # 1,2,3,4,15
-data_sak_raw |> 
-  ggplot(aes(Layers, Functions)) +
-  geom_count(alpha = 0.3) 
-
-```
-
-
 
 ```{r}
 df_sak <- data_sak_raw |> 
   mutate(id = paste0(class, short_name)) |> 
+  filter(short_name != "OUT.Buck") |> 
   # filter(short_name != "OUT.Buck") |> 
   mutate(layer_category = case_when(
     Layers == 1 ~ "Layer1",
@@ -32,38 +16,19 @@ df_sak <- data_sak_raw |>
     Layers == 3 ~ "Layers3",
     Layers == 4 ~ "Layers4",
     Layers > 4 ~ "LayersMoreThan4"
-    ), # layerの数で４つほど？に場合分けして新しい列を0/1でつけていきたい. use quantile()
+    ),
     value = 1L
-  ) |>   # TODO: 
+  ) |>
   pivot_wider(names_from = layer_category, values_from =value, values_fill = 0L) |> 
   relocate(starts_with("Layer"), .before = Lock) |> 
   relocate("Layer1", .after = "Layers") |> 
-  select(-sak)
-  
-  
-  # select(which(!colSums(data_sak_raw, na.rm=TRUE) %in% 0) | is.character()) # 合計が0, 1 もしくはnrow(), nrow()-1のものはuninformativeなので削除してよいはず
-df_sak |> 
-  filter(Price <30000, class < 112) |> 
-  ggplot(aes(x = Price, y = Functions, colour = class, group = class)) +
-  geom_point() +
-  geom_smooth(method = "lm") 
-  # facet_grid(cols = vars(class))
+  select(-sak)　 |> 
+  rowid_to_column(var = "node") |> 
+  mutate(node = node |> as.integer())
 ```
-
-```{r}
-df_sak |> 
-  filter(Price <30000, class < 112) |> 
-  ggplot(aes(x = width, y = Price, colour = weight)) +
-  geom_point() +
-  facet_grid(cols = vars(class))
-```
-
 ## corresp
 
-
-data
-https://www1.doshisha.ac.jp/~mjin/R/Chap_26/26.html
-use FactoMineR instead of MASS to get eigen values
+data <https://www1.doshisha.ac.jp/~mjin/R/Chap_26/26.html> use FactoMineR instead of MASS to get eigen values
 
 ```{r fig.width=5, figh.height = 3}
 
@@ -71,7 +36,7 @@ df_sak_factor <- df_sak |>
   # filter(Price ) |> # remove swissChampXAVT
   select(Layer1:`MAT_Scale:BrassWood`) |> 
   mutate(across(everything(), as.factor))
-sak_mca <- MCA(df_sak_factor, ncp = 2, graph = TRUE)
+sak_mca <- MCA(df_sak_factor, ncp = 2, graph = FALSE)
 
 df_sak_mca_coord <- sak_mca$ind$coord |> 
   as_tibble() |> 
@@ -94,12 +59,11 @@ df_sak_factor2 <- bind_cols(df_sak, df_sak_mca_coord)
 
 ```
 
-
-#### all corresp
+#### plot all corresp
 
 ```{r}
 df_sak_factor2 |>
-  ggplot(aes(mca_x, mca_y, label = short_name, colour = weight)) +
+  ggplot(aes(-mca_x, mca_y, label = short_name, colour = weight)) +
   # geom_point(data = df_sak_factor2 |> select(-class), colour = "grey70") +
   geom_text(aes(label = class),
             family = "Alte DIN 1451 Mittelschrift",
@@ -125,7 +89,7 @@ df_sak_factor2 |>
   theme_bw(base_family = "Fira Code") +
   theme(panel.background = element_rect(fill = "white", colour = "black")) +
   guides(colour = guide_colourbar(barwidth = 5, barheight = .5), direction = "horizontal") +
-  theme(legend.direction = "horizontal", legend.position = c(0.8, 0.9),
+  theme(legend.direction = "horizontal", legend.position = c(0.2, 0.9),
         panel.grid = element_blank())
 
 
@@ -138,62 +102,17 @@ ggsave(filename = "output/sak_correspXY_all.pdf",
        limitsize = FALSE)
 ```
 
-
-
-#### facet grid
-```{r fig.width=5, fig.height = 3}
-df_sak_factor2 |>
-  ggplot(aes(mca_x, mca_y, label = short_name, colour = Price / 1000)) +
-  geom_point(data = df_sak_factor2 |> select(-class), colour = "grey70") +
-    geom_point() +
-  geom_text_repel(
-    # force = .3,
-    # force_pull = .5,
-    max.overlaps = 50, 
-    max.time = 3, 
-    max.iter = 3e5, 
-    size = 2, 
-    min.segment.length = .1, 
-    family = "Fira Code"
-    ) +
-  scale_colour_viridis_c() +
-  labs(colour = "Price (1k yen)" ) +
-  xlab("Dimension 1") +
-  ylab("Dimension 2") +
-  facet_wrap(vars(class)) +
-  theme_minimal(base_family = "Fira Code") +
-  theme(panel.background = element_rect(fill = "white", colour = "black"),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank()) +
-  guides(colour = guide_colourbar(barwidth = 5, barheight = .5), direction = "horizontal") +
-  theme(legend.direction = "horizontal", legend.position = "bottom")
-
-ggsave(filename = "output/sak_correspXY.pdf", 
-         device = cairo_pdf,
-         dpi = 300,
-         unit = "mm",
-       height = 150 , # pixelsでのサイズ
-       width = 200,  # pixelsでのサイズ
-       limitsize = FALSE)
-```
-
-
-
-
-
 cut the trees
 
-https://uc-r.github.io/hc_clustering
+<https://uc-r.github.io/hc_clustering>
 
 ```{r}
-
-
 df_fviz_wss <- df_sak_factor |> 
   fviz_nbclust(FUN = hcut, method = "wss", k.max = 30)
 
 df_fviz_wss2 <- df_fviz_wss$data |> 
   mutate(clusters = as.numeric(clusters))
-df_fviz_wss2 |>   
+plot_sak_elbow <- df_fviz_wss2 |>   
   ggplot(aes(clusters, y)) +
   geom_line() +
   # geom_point() +
@@ -201,73 +120,55 @@ df_fviz_wss2 |>
   xlab("No of clusters k") +
   theme_classic(base_family = "Fira Code")
 
-  ggsave(filename = "output/sak_elbow.pdf", 
-         device = cairo_pdf,
-         dpi = 450,
-         unit = "mm",
-       height = 50, # pixelsでのサイズ
-       width = 75,  # pixelsでのサイズ
-       limitsize = FALSE)
-```
-
-```{r}
+# silhouette
 fviz_sil <- df_sak_factor |> 
   fviz_nbclust(FUN = hcut, method = "silhouette", k.max = 30)
 df_fviz_sil <- fviz_sil$data |> 
   mutate(clusters = as.numeric(clusters))
+# check optimal cluster size
 fviz_sil
-df_fviz_sil |>   
+```
+
+
+```{r}
+plot_sak_sil <- df_fviz_sil |>   
   ggplot(aes(clusters, y)) +
   geom_line() +
-  geom_vline(xintercept = 14, linetype = "dashed", colour = "gray90") +
+  geom_vline(xintercept = 4, linetype = "dashed", colour = "gray90") +
   ylab("Avg sil width") +
   xlab("No of clusters k") +
   theme_classic(base_family = "Fira Code")
-
-ggsave(filename = "output/sak_sil.pdf", 
+# cowplot
+plot_grid(plot_sak_elbow, plot_sak_sil, 
+          align = "hv",
+          ncol=2, 
+          labels=LETTERS)
+ggsave(filename = "output/sak_sil_elbow.pdf", 
        device = cairo_pdf,
-       dpi = 450,
+       dpi = 200,
        unit = "mm",
-       height = 50, # pixelsでのサイズ
-       width = 75,  # pixelsでのサイズ
+       height = 60, # pixelsでのサイズ
+       width = 150,  # pixelsでのサイズ
        limitsize = FALSE)
 
 ```
 
-
-
 ## UPGMA
-
-### jaccard (dont use)
-
-```{r}
-sak_dist_jaccard <- dist(df_sak_factor, method = "binary")
-sak_upgma_jaccard <- sak_dist_jaccard |>
-  hclust(method = "average")  # average = UPGMA
-sak_upgma_tree_jaccard <- sak_upgma_jaccard |> 
-   as.phylo()
-sak_upgma_tree_jaccard$tip.label <- paste0(df_sak_factor2$class, df_sak_factor2$short_name)
-sak_upgma_tree_jaccard |> 
-  plot.phylo(type = "u", use.edge.length = TRUE, lab4ut = "axial")
-
-```
-
-
 
 ### hamming
 
-SplitsTree4のUncorrectedPがHamming距離らしいので、{cultevo}を使ってHamming距離を算出する。しかし全然違う結果になる・・・なぜ？
+SplitsTree4のUncorrectedPがHamming距離である。、{e1071}の`hamming.distance()`をつかう。`hammingdists()`はダメ
 
 ```{r}
-sak_dist <- hammingdists(df_sak_factor) # 5sec. sometimes it's finished very fast but it means it's not running...? in that case, restart R
+sak_dist <- hamming.distance(df_sak_factor |> as.matrix()) |> as.dist()
 
 sak_upgma <- sak_dist |>
   hclust(method = "average") |> # average = UPGMA
    as.phylo()
-sak_upgma$tip.label <- df_sak$short_name
 sak_upgma |> 
   plot.phylo(type = "u", use.edge.length = TRUE, lab4ut = "axial")
 ```
+
 ## NJ
 
 ```{r}
@@ -278,12 +179,6 @@ sak_nj |>
 ```
 
 ## join traits
-
-```{r}
-df_sak_rowid <- df_sak |>
-  rowid_to_column(var = "node") |> 
-  mutate(node = node |> as.integer())
-```
 
 ### UPGMA
 
@@ -313,46 +208,7 @@ df_sak_nj <- sak_nj |>
 ```
 
 
-## ancestral phenotype reconstruction using fastAnc
-
-phytools fastAnc
-
-
-### kyoutsuu
-
-```{r}
-# create a named number vector of weights (in gram) of SAKs
-sak_trait_weight <- df_sak_upgma |> 
-  select(weight) |> 
-  as.matrix()
-# change the matrix into a vector, then cull unwanted nodes after 57
-sak_trait_weight_named_num <- sak_trait_weight[, 1][1:nrow(df_sak)]
-```
-
-### UPGMA
-
-```{r}
-# now fit the data to nodes using UPGMA tree
-sak_fit_upgma_weight <- fastAnc(
-  sak_upgma, 
-  sak_trait_weight_named_num,
-  vars = TRUE, 
-  CI = TRUE)
-df_sak_upgma$weight[(nrow(df_sak) + 1): nrow(df_sak_upgma)] <- sak_fit_upgma_weight$ace
-```
-
-### nj
-```{r}
-sak_fit_nj_weight <- fastAnc(
-  sak_nj, 
-  sak_trait_weight_named_num,
-  vars = TRUE,
-  CI = TRUE)
-df_sak_nj$weight[(nrow(df_sak) + 1): nrow(df_sak_nj)] <- sak_fit_nj_weight$ace
-```
-
-
-## join tree with df
+## join tree with df for plot
 
 ```{r}
 # join with tree. seems impossible but possible :D
@@ -361,109 +217,18 @@ sak_nj2 <- full_join(sak_nj, df_sak_nj, by = "node")
 ```
 
 
-## Plot using ggtree
+# appendices
 
-### UPGMA hamming 
-
-```{r warning=FALSE}
-sak_upgma2 |> 
-  ggtree(layout = "ape", aes(colour = weight)) +
-  geom_tiplab(aes(label = paste0(class, label),), family = "Fira Code", size = 2, hjust = -.15) + # model name (e.g., Explorer)
-  geom_tiplab(aes(label = weight |> round(0)), family = "Fira Code", size = 1, hjust = 1) + # weight of models
-  geom_nodelab(aes(label = weight |> round(0)), family = "Fira Code", size = 1, colour = "black") + # estimated weights at nodes
-  geom_treescale() + 
-  scale_size_area(max_size = 5) +
-  scale_colour_viridis_c(limits = c(15, 206)) +
-  coord_cartesian(clip = 'off') +
-  theme_tree(
-    plot.margin=margin(40, 80, 40, 60), 
-  ) +
-  theme(
-    legend.position = c(0.05, .8),
-    legend.key.size = unit(2, 'mm'),
-    ) 
-
-ggsave(filename = "output/sak_upgma_hamming.pdf", 
-       device = cairo_pdf,
-       dpi = 450,
-       unit = "mm",
-       height = 100, # pixelsでのサイズ
-       width = 160,  # pixelsでのサイズ
-       limitsize = FALSE)
-```
-
-```{r}
-sak_upgma2 |> 
-  ggtree(layout = "circular", aes(colour = weight)) +
-  geom_tiplab(aes(label = paste0(class, label),), family = "Fira Code", size = 2, hjust = -.15) + # model name (e.g., Explorer)
-  geom_tiplab(aes(label = weight |> round(0)), family = "Fira Code", size = 1, hjust = 1) + # weight of models
-  geom_nodelab(aes(label = weight |> round(0)), family = "Fira Code", size = 1, colour = "black") + # estimated weights at nodes
-  geom_treescale() + 
-  scale_size_area(max_size = 5) +
-  scale_colour_viridis_c(limits = c(15, 206)) +
-  # coord_cartesian(clip = 'off') +
-  theme_tree(
-    plot.margin=margin(40, 80, 40, 60), 
-  ) +
-  theme(
-    legend.position = c(0.05, .8),
-    legend.key.size = unit(2, 'mm'),
-    ) 
-
-
-```
-
-### NJ
-
-```{r fig.width =3, fig.height=3, warning=FALSE}
-sak_nj2 |> 
-  ggtree(layout = "ape", aes(colour = weight)) +
-  geom_tiplab(aes(label = paste0(class, label),), family = "Fira Code", size = 3, hjust = -.3) + # model name (e.g., Explorer)
-  geom_tiplab(aes(label = weight |> round(0)), family = "Fira Code", size = 2, hjust = 1) + # weight of models
-  geom_nodelab(aes(label = weight |> round(0)), family = "Fira Code", size = 2, vjust = 1) + # estimated weights at nodes
-  geom_treescale() + 
-  scale_size_area(max_size = 5) +
-  scale_colour_viridis_c(limits = c(15, 206)) +
-  coord_cartesian(clip = 'off') +
-  theme_tree(
-    plot.margin=margin(120, 40, 40, 40), 
-  ) +
-  theme(
-    legend.position = c(.1, .9),
-    legend.key.size = unit(2, 'mm'),
-    ) 
-
-```
-```{r fig.width = 5, fig.height = 5}
-sak_nj2 |> 
-  root(outgroup = 45, edgelabel = TRUE) |> 
-  ggtree(aes(colour = weight)) +
-  geom_tiplab(aes(label = paste0(class, label),), family = "Fira Code", size = 3, hjust = -.3) + # model name (e.g., Explorer)
-  geom_tiplab(aes(label = weight |> round(0)), family = "Fira Code", size = 2, hjust = 1) + # weight of models
-  geom_nodelab(aes(label = weight |> round(0)), fill = "white",  family = "Fira Code", size = 2) + # estimated weights at nodes
-  geom_treescale() + 
-  scale_size_area(max_size = 5) +
-  scale_colour_viridis_c(limits = c(15, 206)) +
-  # coord_cartesian(clip = 'off') +
-  theme_tree(
-    plot.margin=margin(40, 40, 40, 40), 
-  ) +
-  theme(
-    legend.position = c(0.15, .5),
-    legend.key.size = unit(2, 'mm'),
-    ) 
-```
-
+参考。phyDatでカテゴリカルなものを復元しようとしたり
 
 
 create phyDat data for categorical phenotype reconstruction
-```{r}
-df_sak_factor_with_name <- df_sak_factor |> 
-  mutate(name = df_sak$short_name) |> 
-  relocate(name)
 
+```{r}
 phyDat_sak <-
-  df_sak_factor_with_name |> 
+ df_sak_factor |> 
+  mutate(name = df_sak$short_name) |> 
+  relocate(name) |> 
   rownames_to_column() |> 
   pivot_longer(-name, 'variable', 'value') |> 
   pivot_wider(variable, name) |> 
@@ -473,16 +238,18 @@ phyDat_sak <-
   phyDat(type = "USER", levels = c("0", "1")) 
 ```
 
-
-
 ### neighbornet
 
-plot isn't really good. use SplitsTree4 using write.nexus()?
+できるけど…
+
+plot isn't really good and does not match exactly with SplitsTree4 output, probably because `neighborNet()` func is experimental. use SplitsTree4 using write.nexus()?
 
 ```{r fig.width = 5, fig.height=5}
 sak_dist2 <- phyDat_sak |> dist.hamming() # must be phyDat
 sak_nn <- sak_dist2 |> 
   neighborNet() # takes 30sec
+
+
 
 df_sak_nn <- sak_nn |> 
   as_tibble() |> 
@@ -498,13 +265,13 @@ sak_nn2 <- full_join(sak_nn, df_sak_nn, by = "node")
 
 ### plot NN
 
-```{r fig.width = 5, fig.height=5}
-sak_nn |> ggsplitnet(aes(x, y))+
+```{r}
+sak_nn |>  ggsplitnet(aes(x, y))+
   geom_splitnet(size = .1) +
-  geom_tiplab2(data =  df_sak_nn, aes(colour = class), size = 2, family = "Fira Code") +
+  geom_tiplab2(size = 2, family = "Fira Code", hjust = -.1) +
   theme_tree() +
-  xlim(-.25, .35) +
-  ylim(-.25,.25)
+  ggexpand(.1) + 
+  ggexpand(.1, direction=-1)
 ggsave(filename = "output/sak_nn.pdf", 
        device = cairo_pdf,
        dpi = 450,
@@ -514,6 +281,7 @@ ggsave(filename = "output/sak_nn.pdf",
        limitsize = FALSE)
 ```
 
+networx()ではかなりできることが少ないので、SplitsTree4を使わないといけなさそう：
 
 ```{r fig.width = 5, fig.height=5}
 getwd()
@@ -521,12 +289,39 @@ df_sak_factor_with_name |>
   write_tsv("./data/sak_factor_for_mesquite_nex.tsv")
 sak_nj |> write.nexus("data/sak_factor.nex")
 ```
+
 ```{r}
 # data(yeast, package="phangorn")
 # dm <- phangorn::dist.ml(yeast)
 # nnet <- phangorn::neighborNet(dm)
 
 ```
+
+## Delta Score
+
+{phangorn} provides `delta.score()`. [document](https://rdrr.io/cran/phangorn/man/delta.score.html) ##\# example
+
+デルタスコア計算できるのはいいけど、ネットワークの形がSplitsTree4と違うので参考程度にしかならないか。
+
+```{r}
+data(yeast)
+hist(delta.score(yeast, "all"))
+```
+
+```{r}
+# compute delta score. takes 1min, sometimes it fails with error object 'decreasing' not found
+# re-run it and it works (at least it worked)
+sak_delta_all <- phyDat_sak |> delta.score(arg = "all") 
+
+
+sak_delta_all |> 
+  hist()
+mean(sak_delta_all) # identical to delta.score()
+length(sak_delta_all)
+
+
+```
+
 
 
 
