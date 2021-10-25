@@ -6,9 +6,8 @@ output: html_notebook
 ## join tree with df
 
 ```{r}
-sak_upgma3 <- full_join(sak_upgma_modern, df_sak_upgma_modern, by = "node")
-sak_nj3 <- full_join(sak_nj_modern, df_sak_nj_modern, by = "node") |> 
-  mutate(id = if_else(is.na(label), paste0("node", node), paste0(class, label))) # unrooted
+sak_upgma_ace_modern <- full_join(sak_upgma_modern, df_sak_upgma_modern, by = "node")
+sak_nj_ace_modern <- full_join(sak_nj_modern, df_sak_nj_modern, by = "node") # unrooted
 # sak_nj4 <- full_join(sak_nj_modern_rooted, df_sak_nj_modern, by = "node") |> 
 #   mutate(id = if_else(is.na(id), paste0("node", node), id)) # rooted at around middle 
 ```
@@ -32,7 +31,7 @@ radial?
 
 
 ```{r}
-sak_nj3 |> 
+sak_nj) |> 
   ggtree() +
   # geom_tree() +
   geom_tiplab() +
@@ -60,7 +59,7 @@ sak_nj3 |> as_tibble() |> View()
 ```
 
 ```{r}
-  sak_nj3 |>
+sak_nj_ace_modern |> 
   ggtree(aes(colour = width), continuous = "colour", yscale = "weight") +
   geom_text(
     data = df_sak_old, 
@@ -90,7 +89,7 @@ theme_phenogram <-
     panel.border = element_blank()
         ) 
 plot_sak_pheno_weight_nj <-
-  sak_nj3 |>
+  sak_nj_ace_modern |>
   ggtree(aes(colour = width), continuous = "colour", yscale = "weight") +
   geom_text(
     data = df_sak_old, 
@@ -106,7 +105,7 @@ plot_sak_pheno_weight_nj <-
   theme_phenogram
 
 plot_sak_pheno_weight_upgma <-
-  sak_upgma3 |> 
+  sak_upgma_ace_modern |> 
   ggtree(aes(colour = width), continuous = "colour", yscale = "weight") +
   geom_text(
     data = df_sak_old, 
@@ -126,7 +125,7 @@ plot_sak_pheno_weight_upgma <-
 
 ## NJ
 plot_sak_pheno_width_nj <-
-  sak_nj3 |> 
+  sak_nj_ace_modern |> 
   ggtree(aes(colour = weight), continuous = "colour", yscale = "width") +
   geom_text(
     data = df_sak_old, 
@@ -144,7 +143,7 @@ plot_sak_pheno_width_nj <-
 ## UPGMA
 
 plot_sak_pheno_width_upgma <-
-  sak_upgma3 |> 
+  sak_upgma_ace_modern |> 
   ggtree(aes(colour = weight), continuous = "colour", yscale = "width") +
 geom_text(
     data = df_sak_old, 
@@ -165,7 +164,7 @@ geom_text(
 ## NJ
 
 plot_sak_pheno_Functions_nj <-
-  sak_nj3 |> 
+  sak_nj_ace_modern |> 
   ggtree(aes(colour = weight), continuous = "colour", yscale = "Functions") +
   geom_text(
     data = df_sak_old, 
@@ -182,7 +181,7 @@ plot_sak_pheno_Functions_nj <-
    theme_phenogram
 ## UPGMA
 plot_sak_pheno_Functions_upgma <-
-  sak_upgma3 |> 
+  sak_upgma_ace_modern |> 
   ggtree(aes(colour = weight), continuous = "colour", yscale = "Functions") +
   geom_text(
     data = df_sak_old, 

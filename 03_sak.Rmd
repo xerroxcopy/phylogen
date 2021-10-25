@@ -76,32 +76,28 @@ df_sak_longer <- data_sak_raw |>
     # value_width = 1L,
     # value_func = 1L
   ) 
-df_sak_longer |>
-  ggplot(aes(func_category)) +
-  geom_bar()
+# df_sak_longer |>
+#   ggplot(aes(func_category)) +
+#   geom_bar()
 ```
 
 
 ```{r}
 df_sak_wider <- df_sak_longer |> 
-  pivot_wider(names_from = layer_category, values_from = value_layer, values_fill = 0L) |> 
+  pivot_wider(names_from = layer_category, values_from = value_layer, values_fill = 0L) |>  
   # pivot_wider(names_from = class_category, values_from = value_class, values_fill = 0L) |> 
   # pivot_wider(names_from = weight_category, values_from = value_weight, values_fill = 0L) |> 
   # pivot_wider(names_from = width_category, values_from = value_width, values_fill = 0L) |> 
   # pivot_wider(names_from = func_category, values_from = value_func, values_fill = 0L) |> 
   relocate(starts_with("Layer"), .before = Lock) |> 
   relocate("Layer1", .after = "Layers")
+View(df_sak_wider)
 ```
 
 # data (without continuous-categorical variables)
 
 ```{r}
 df_sak <- data_sak_raw |>  
-  select(-sak)　 |> 
-  rowid_to_column(var = "node") |> 
-  mutate(node = node |> as.integer())
-# View(df_sak)
-df_sak <- data_sak_raw_old |>  
   select(-sak)　 |> 
   rowid_to_column(var = "node") |> 
   mutate(node = node |> as.integer())
@@ -112,9 +108,12 @@ df_sak <- data_sak_raw_old |>
 data <https://www1.doshisha.ac.jp/~mjin/R/Chap_26/26.html> use FactoMineR instead of MASS to get eigen values
 
 ```{r fig.width=5, figh.height = 3}
-
+df_sak <- df_sak_wider |> 
+  select(-sak) |> 
+  rowid_to_column(var = "node") |> 
+  mutate(node = node |> as.integer())
 df_sak_factor <- df_sak |> 
-  select(Lock:`MAT_Scale:IsMetalGroup`) |> 
+  select(Layer1:`MAT_Scale:IsMetalGroup`) |> 
   mutate(across(everything(), as.factor))
 sak_mca <- MCA(df_sak_factor, ncp = 2, graph = FALSE)
 
@@ -251,13 +250,15 @@ sak_dist <- hamming.distance(df_sak_factor |> as.matrix()) |> as.dist()
 ## construct a UPGMA tree
 
 ```{r}
+sak_dist <- hamming.distance(df_sak_factor |> as.matrix()) |> as.dist()
+
 sak_upgma <- sak_dist |>
   hclust(method = "average") |> # average = UPGMA
    as.phylo()
 sak_upgma$tip.label <- df_sak$short_name
 
-sak_upgma |> 
-  plot.phylo(type = "u", use.edge.length = TRUE, lab4ut = "axial")
+# sak_upgma |> 
+  # plot.phylo(type = "u", use.edge.length = TRUE, lab4ut = "axial")
 ```
 
 ## NJ
@@ -277,13 +278,12 @@ sak_nj |>
 ```{r}
 df_sak_upgma <- sak_upgma |>
   as_tibble() |> 
-  left_join(df_sak_rowid, by = "node") |> 
+  left_join(df_sak, by = "node") |> 
   select(parent:class, short_name, Functions, width, weight) |> 
   mutate(short_name = if_else(is.na(short_name), node |> as.character(), short_name)) |> 
   column_to_rownames(var = "short_name") |> 
   mutate(node = node |> as.numeric()) |> 
   select(node, class, Functions, weight, width) # temporarily limite
-sak_upgma$tip.label <- df_sak$short_name
 ```
 
 ### NJ
@@ -291,7 +291,7 @@ sak_upgma$tip.label <- df_sak$short_name
 ```{r}
 df_sak_nj <- sak_nj |> 
   as_tibble() |> 
-  left_join(df_sak_rowid, by = "node") |> 
+  left_join(df_sak, by = "node") |> 
   select(parent:class, short_name, Functions, width, weight) |> 
   mutate(short_name = if_else(is.na(short_name), node |> as.character(), short_name)) |> 
   column_to_rownames(var = "short_name") |> 

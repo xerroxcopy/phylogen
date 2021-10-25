@@ -21,7 +21,7 @@ df_sak_modern <- df_sak |>
 # filter only 0/1 categorical variables
 df_sak_factor_modern <-
   df_sak_modern |> 
-  select(Lock:`MAT_Scale:IsMetalGroup`) |> 
+  select(Layer1:`MAT_Scale:IsMetalGroup`) |> 
   select(where(~(sum(.) > 0  & sum(.) < nrow(df_sak_modern)))) |> 
   mutate(across(everything(), as.factor)) 
 ```
@@ -39,15 +39,15 @@ but e1071's hamming.distance is also buggy...? i always have to compute sak_dist
 
 ```{r}
 # do not run this!
-sak_dist_modern <- 
-  hamming.distance(df_sak_factor_modern |>as.matrix()) |>
-  as.dist()
-sak_dist_modern |> nj() |> plot() # right after computing distance. works
-sak_dist_modern |> nj() |> plot() # second time. does not work
-sak_dist_modern <- 
-  hamming.distance(df_sak_factor_modern |>as.matrix()) |>
-  as.dist()
-sak_dist_modern |> nj() |> plot() # second time, but right after computing distance. works
+# sak_dist_modern <- 
+#   hamming.distance(df_sak_factor_modern |>as.matrix()) |>
+#   as.dist()
+# sak_dist_modern |> nj() |> plot() # right after computing distance. works
+# sak_dist_modern |> nj() |> plot() # second time. does not work
+# sak_dist_modern <- 
+#   hamming.distance(df_sak_factor_modern |>as.matrix()) |>
+#   as.dist()
+# sak_dist_modern |> nj() |> plot() # second time, but right after computing distance. works
 
 ```
 
@@ -164,23 +164,23 @@ df_sak_named_rows_modern <- df_sak_modern |>
 since fastAnc does not work, try the minimum version
 
 ```{r}
-
-sak_nj |> 
-  ggtree(layout = "ape") +
-  geom_tiplab()
-sak_trait_weight <- df_sak_named_rows |> 
-  select(weight) |> 
-  as.matrix()
-sak_trait_weight_named_num <- sak_trait_weight[, 1][1:nrow(df_sak_named_rows)]
-
-sak_trait_weight_named_num |> length()
-
-test <- sak_trait_weight_named_num |> setNames(nm = df_sak$short_name)
-test
-sak_fit_upgma_weight <- fastAnc(
-  tree = sak_nj, 
-  x = sak_trait_weight_named_num)
-View(sak_fit_upgma_weight)
+# 
+# sak_nj |> 
+#   ggtree(layout = "ape") +
+#   geom_tiplab()
+# sak_trait_weight <- df_sak_named_rows |> 
+#   select(class) |> 
+#   as.matrix()
+# sak_trait_weight_named_num <- sak_trait_weight[, 1][1:nrow(df_sak_named_rows)]
+# 
+# 
+# sak_trait_weight_named_num
+# test <-  sak_dist |> 
+#   nj()
+# sak_fit_upgma_weight <- fastAnc(
+#   tree = sak_nj,
+#   x = sak_trait_weight_named_num)
+# View(sak_fit_upgma_weight)
 ```
 
 
@@ -203,10 +203,7 @@ sak_trait_weight_named_num <- sak_trait_weight[, 1][1:nrow(df_sak_named_rows)]
 sak_trait_width_named_num <- sak_trait_width[, 1][1:nrow(df_sak_named_rows)]
 sak_trait_class_named_num <- sak_trait_class[, 1][1:nrow(df_sak_named_rows)]
 sak_trait_function_named_num <- sak_trait_function[, 1][1:nrow(df_sak_named_rows)]
-```
 
-
-```{r}
 #### kyoutsuu: modern
 
 # create a named number vector of weights (in gram) of SAKs
@@ -227,65 +224,69 @@ sak_trait_weight_modern_named_num <- sak_trait_weight_modern[, 1][1:nrow(df_sak_
 sak_trait_width_modern_named_num <- sak_trait_width_modern[, 1][1:nrow(df_sak_named_rows_modern)]
 sak_trait_class_modern_named_num <- sak_trait_class_modern[, 1][1:nrow(df_sak_named_rows_modern)]
 sak_trait_function_modern_named_num <- sak_trait_function_modern[, 1][1:nrow(df_sak_named_rows_modern)]
+```
 
+
+```{r}
 ## UPGMA
 # now fit the data to nodes using UPGMA tree. dunno how to vectorize them so i just iterate it over weight, class, width, and function.
 #### modern, outgroup, old, everything
 sak_fit_upgma_weight <- fastAnc(
   sak_upgma, 
   sak_trait_weight_named_num,
-  vars = TRUE, 
-  CI = TRUE)
-df_sak_named_rows_upgma$weight[(nrow(df_sak_named_rows) + 1):nrow(df_sak_named_rows_upgma)] <- sak_fit_upgma_weight$ace
+  )
+
+df_sak_upgma$weight[(nrow(df_sak_named_rows) + 1):nrow(df_sak_upgma)] <- sak_fit_upgma_weight
 
 sak_fit_upgma_width <- fastAnc(
   sak_upgma, 
-  sak_trait_width_named_num)
-df_sak_named_rows_upgma$width[(nrow(df_sak_named_rows) + 1):nrow(df_sak_named_rows_upgma)] <- sak_fit_upgma_width$ace
+  sak_trait_width_named_num,
+   
+  )
+df_sak_upgma$width[(nrow(df_sak_named_rows) + 1):nrow(df_sak_upgma)] <- sak_fit_upgma_width
 
 sak_fit_upgma_class <- fastAnc(
   sak_upgma, 
   sak_trait_class_named_num,
-  vars = TRUE, 
-  CI = TRUE)
-df_sak_named_rows_upgma$class[(nrow(df_sak_named_rows) + 1):nrow(df_sak_named_rows_upgma)] <- sak_fit_upgma_class$ace
+   
+  )
+df_sak_upgma$class[(nrow(df_sak_named_rows) + 1):nrow(df_sak_upgma)] <- sak_fit_upgma_class
 
 sak_fit_upgma_function <- fastAnc(
   sak_upgma, 
   sak_trait_function_named_num,
-  vars = TRUE, 
-  CI = TRUE)
-df_sak_named_rows_upgma$Functions[(nrow(df_sak_named_rows) + 1):nrow(df_sak_named_rows_upgma)] <- sak_fit_upgma_function$ace
+   
+  )
+df_sak_upgma$Functions[(nrow(df_sak_named_rows) + 1):nrow(df_sak_upgma)] <- sak_fit_upgma_function
 
 #### UPGMA: modern
 
 sak_fit_upgma_weight_modern <- fastAnc(
   sak_upgma_modern, 
   sak_trait_weight_modern_named_num,
-  vars = TRUE, 
-  CI = TRUE)
-df_sak_named_rows_upgma_modern$weight[(nrow(df_sak_named_rows_modern) + 1):nrow(df_sak_named_rows_upgma_modern)] <- sak_fit_upgma_weight_modern$ace
+
+  )
+df_sak_upgma_modern$weight[(nrow(df_sak_named_rows_modern) + 1):nrow(df_sak_upgma_modern)] <- sak_fit_upgma_weight_modern
 
 sak_fit_upgma_width_modern <- fastAnc(
   sak_upgma_modern, 
   sak_trait_width_modern_named_num,
-  vars = TRUE, 
-  CI = TRUE)
-df_sak_named_rows_upgma_modern$width[(nrow(df_sak_named_rows_modern) + 1):nrow(df_sak_named_rows_upgma_modern)] <- sak_fit_upgma_width_modern$ace
+  )
+df_sak_upgma_modern$width[(nrow(df_sak_named_rows_modern) + 1):nrow(df_sak_upgma_modern)] <- sak_fit_upgma_width_modern
 
 sak_fit_upgma_class_modern <- fastAnc(
   sak_upgma_modern, 
   sak_trait_class_modern_named_num,
-  vars = TRUE, 
-  CI = TRUE)
-df_sak_named_rows_upgma_modern$class[(nrow(df_sak_named_rows_modern) + 1):nrow(df_sak_named_rows_upgma_modern)] <- sak_fit_upgma_class_modern$ace
+   
+  )
+df_sak_upgma_modern$class[(nrow(df_sak_named_rows_modern) + 1):nrow(df_sak_upgma_modern)] <- sak_fit_upgma_class_modern
 
 sak_fit_upgma_function_modern <- fastAnc(
   sak_upgma_modern, 
   sak_trait_function_modern_named_num,
-  vars = TRUE, 
-  CI = TRUE)
-df_sak_named_rows_upgma_modern$Functions[(nrow(df_sak_named_rows_modern) + 1):nrow(df_sak_named_rows_upgma_modern)] <- sak_fit_upgma_function_modern$ace
+   
+  )
+df_sak_upgma_modern$Functions[(nrow(df_sak_named_rows_modern) + 1):nrow(df_sak_upgma_modern)] <- sak_fit_upgma_function_modern
 
 ### NJ
 #### NJ modern, outgroup, old, everything
@@ -293,70 +294,71 @@ df_sak_named_rows_upgma_modern$Functions[(nrow(df_sak_named_rows_modern) + 1):nr
 sak_fit_nj_weight <- fastAnc(
   sak_nj, 
   sak_trait_weight_named_num,
-  vars = TRUE, 
-  CI = TRUE)
-df_sak_named_rows_nj$weight[(nrow(df_sak_named_rows) + 1):nrow(df_sak_named_rows_nj)] <- sak_fit_nj_weight$ace
+   
+  )
+df_sak_nj$weight[(nrow(df_sak_named_rows) + 1):nrow(df_sak_nj)] <- sak_fit_nj_weight
 
 # fill NA (Officer, which I couldn't find ANY width data anywhere...)
 sak_trait_width_named_num[is.na(sak_trait_width_named_num)] <- 20.5 # borrow from old soldier knife
 sak_fit_nj_width <- fastAnc(
   sak_nj, 
   sak_trait_width_named_num,
-  vars = TRUE, 
-  CI = TRUE)
-df_sak_named_rows_nj$width[(nrow(df_sak_named_rows) + 1):nrow(df_sak_named_rows_nj)] <- sak_fit_nj_width$ace
+   
+  )
+df_sak_nj$width[(nrow(df_sak_named_rows) + 1):nrow(df_sak_nj)] <- sak_fit_nj_width
 
 sak_fit_nj_class <- fastAnc(
   sak_nj, 
   sak_trait_class_named_num,
-  vars = TRUE, 
-  CI = TRUE)
-df_sak_named_rows_nj$class[(nrow(df_sak_named_rows) + 1):nrow(df_sak_named_rows_nj)] <- sak_fit_nj_class$ace
+   
+  )
+df_sak_nj$class[(nrow(df_sak_named_rows) + 1):nrow(df_sak_nj)] <- sak_fit_nj_class
 
 sak_fit_nj_function <- fastAnc(
   sak_nj, 
   sak_trait_function_named_num,
-  vars = TRUE, 
-  CI = TRUE)
-df_sak_named_rows_nj$Functions[(nrow(df_sak_named_rows) + 1):nrow(df_sak_named_rows_nj)] <- sak_fit_nj_function$ace
+  )
+df_sak_nj$Functions[(nrow(df_sak_named_rows) + 1):nrow(df_sak_nj)] <- sak_fit_nj_function
 
 #### NJ modern
 
 sak_fit_nj_weight_modern <- fastAnc(
   sak_nj_modern, 
   sak_trait_weight_modern_named_num,
-  vars = TRUE, 
-  CI = TRUE)
-df_sak_named_rows_nj_modern$weight[(nrow(df_sak_named_rows_modern) + 1):nrow(df_sak_named_rows_nj_modern)] <- sak_fit_nj_weight_modern$ace
+   
+  )
+df_sak_nj_modern$weight[(nrow(df_sak_named_rows_modern) + 1):nrow(df_sak_nj_modern)] <- sak_fit_nj_weight_modern
 
 sak_fit_nj_width_modern <- fastAnc(
   sak_nj_modern, 
   sak_trait_width_modern_named_num,
-  vars = TRUE, 
-  CI = TRUE)
-df_sak_named_rows_nj_modern$width[(nrow(df_sak_named_rows_modern) + 1):nrow(df_sak_named_rows_nj_modern)] <- sak_fit_nj_width_modern$ace
+   
+  )
+df_sak_nj_modern$width[(nrow(df_sak_named_rows_modern) + 1):nrow(df_sak_nj_modern)] <- sak_fit_nj_width_modern
 
 sak_fit_nj_class_modern <- fastAnc(
   sak_nj_modern, 
   sak_trait_class_modern_named_num,
-  vars = TRUE, 
-  CI = TRUE)
-df_sak_named_rows_nj_modern$class[(nrow(df_sak_named_rows_modern) + 1):nrow(df_sak_named_rows_nj_modern)] <- sak_fit_nj_class_modern$ace
+   
+  )
+df_sak_nj_modern$class[(nrow(df_sak_named_rows_modern) + 1):nrow(df_sak_nj_modern)] <- sak_fit_nj_class_modern
 
 sak_fit_nj_function_modern <- fastAnc(
   sak_nj_modern, 
   sak_trait_function_modern_named_num,
-  vars = TRUE, 
-  CI = TRUE)
-df_sak_named_rows_nj_modern$Functions[(nrow(df_sak_named_rows_modern) + 1):nrow(df_sak_named_rows_nj_modern)] <- sak_fit_nj_function_modern$ace
+   
+  )
+df_sak_nj_modern$Functions[(nrow(df_sak_named_rows_modern) + 1):nrow(df_sak_nj_modern)] <- sak_fit_nj_function_modern
 ```
 
 check
 
 is `df_sak_nj_modern` ok? `NaN` included?
 ```{r}
-View(df_sak_upgma)
-View(df_sak_nj_modern)
+View(df_sak_upgma) # for main tree plot
+View(df_sak_nj) # for main tree plot
+View(df_sak_upgma_modern) # for 2 by 3 phenogram plot
+View(df_sak_nj_modern) # for 2 by 3 phenogram plot
 ```
 
 
@@ -472,7 +474,7 @@ sak_upgma_modern |>
 #### phangorn ML
 [phangorn](https://cran.r-project.org/web/packages/phangorn/vignettes/Ancestral.html)を使ってみるか？ATGCでなくてもできるとよいのだが。→MLだと少なくともシーケンスじゃないとダメかなぁ。
 ```{r}
-# fit_sak_nj <- fastAnc(tree = sak_nj, x = phyDat_sak, vars = TRUE, CI = TRUE)
+# fit_sak_nj <- fastAnc(tree = sak_nj, x = phyDat_sak,  )
 fit_sak_nj <- pml(tree = sak_nj, data = phyDat_sak) |> 
   optim.pml() # ... :D
 ```
