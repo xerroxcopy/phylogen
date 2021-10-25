@@ -237,13 +237,14 @@ knitr::opts_chunk$set(dev = &quot;ragg_png&quot;)</code></pre>
 <p>データは<a href="https://docs.google.com/spreadsheets/d/1VZzjCMs21iBTIXoHR2Ph8wqyS8jQBlS4TDAmJXYjVKI/edit?usp=sharing">Google Spreadsheets</a>に格納している。データの各所が「どうしてこうなっているか」を忘れている部分があるが、仕方ない。なんとかしたい。</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-frame-begin eyJtZXRhZGF0YSI6eyJjbGFzc2VzIjpbInRibF9kZiIsInRibCIsImRhdGEuZnJhbWUiXSwibnJvdyI6MSwibmNvbCI6MSwic3VtbWFyeSI6eyJBIHRpYmJsZSI6WyIxIMOXIDEiXX19LCJyZGYiOiJINHNJQUFBQUFBQUFBMTFQdlFyQ01CQysxRVpwd1NyNEhPM1N4YzFGWE55S2dtdXNVWXMxS1dtS3V2bklQb0Y2S1Fsb0RpNTM5K1YrdnE5WTd2SjRGd1BBQUVLQ0w4VVU2SGF6U3VjQVlZQUZnUkFpRSsvNFBlc0JnTVRFeFF1cy9UVlN3YTY4eFdUNkE0N1cvRkZVNHVUMVJrcmVNdGMvUmcrZStIelEvS1ZselZwL2FYeGdtbVZIaGZOWXZiMlJrV3gwSlFVT0JZWTI5WWFKOG9CSkp3eVRRMXFlTzNGSmMzUEF5Z1hMamxqL3ljM0o0R05YVWJ0cXlNV3BFdHh4cjltZTE3WklVSEV2T0d0VUpiUlRnbWliYWFtWjY0dExXVHVrMXdidkx3eFNmVWV0QVFBQSJ9 -->
-<div data-pagedtable="false">
-<script data-pagedtable-source type="application/json">
-{"columns":[{"label":["KeyRing"],"name":[1],"type":["dbl"],"align":["right"]}],"data":[{"1":"1"}],"options":{"columns":{"min":{},"max":[10],"total":[1]},"rows":{"min":[10],"max":[10],"total":[1]},"pages":{}}}
-  </script>
-</div>
-<!-- rnb-frame-end -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZGF0YV9zYWtfcmF3IDwtIHJlYWRfc2hlZXQoXCJodHRwczovL2RvY3MuZ29vZ2xlLmNvbS9zcHJlYWRzaGVldHMvZC8xVlp6akNNczIxaUJUSVhvSFIyUGg4d3F5UzhqUUJsUzRUREFtSlhZalZLSS9lZGl0P3VzcD1zaGFyaW5nXCIsIHNoZWV0ID0gXCJzd2lzcyBhcm15IGtuaXZlc1wiKVxuXG5gYGAifQ== -->
+<pre class="r"><code>data_sak_raw &lt;- read_sheet(&quot;https://docs.google.com/spreadsheets/d/1VZzjCMs21iBTIXoHR2Ph8wqyS8jQBlS4TDAmJXYjVKI/edit?usp=sharing&quot;, sheet = &quot;swiss army knives&quot;)
+</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-output-begin eyJkYXRhIjoi4pyTIFJlYWRpbmcgZnJvbSBwaHlsb2dlbl9kYXRhOiBzd2lzcyBhcm15IGtuaXZlczsgaWRvbCBsaWdodHN0aWNrczsgYW50aHJvcG9tb3JwaGljIGFydGVmYWN0cy5cbuKckyBSYW5nZSAnJ3N3aXNzIGFybXkga25pdmVzJycuXG4ifQ== -->
+<pre><code>✓ Reading from phylogen_data: swiss army knives; idol lightsticks; anthropomorphic artefacts.
+✓ Range &#39;&#39;swiss army knives&#39;&#39;.</code></pre>
+<!-- rnb-output-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->

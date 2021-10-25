@@ -8,7 +8,7 @@ output: html_notebook
 ```{r}
 sak_upgma3 <- full_join(sak_upgma_modern, df_sak_upgma_modern, by = "node")
 sak_nj3 <- full_join(sak_nj_modern, df_sak_nj_modern, by = "node") |> 
-  mutate(id = if_else(is.na(id), paste0("node", node), id)) # unrooted
+  mutate(id = if_else(is.na(label), paste0("node", node), paste0(class, label))) # unrooted
 # sak_nj4 <- full_join(sak_nj_modern_rooted, df_sak_nj_modern, by = "node") |> 
 #   mutate(id = if_else(is.na(id), paste0("node", node), id)) # rooted at around middle 
 ```
@@ -17,8 +17,8 @@ sak_nj3 <- full_join(sak_nj_modern, df_sak_nj_modern, by = "node") |>
 plot all, hilight OLD, 
 
 ```{r}
-df_sak_nj_modern |> 
- mutate(id = if_else(is.na(id), paste0("node", node), id)) |> 
+sak_nj3 |> 
+  as_tibble() |> 
   filter(id != "91SwissChampXAVT") |> 
   ggplot(aes(width, weight, colour = class)) +
   geom_text(aes(label = id)) +
@@ -34,14 +34,14 @@ radial?
 ```{r}
 sak_nj3 |> 
   ggtree() +
-  geom_tree() +
+  # geom_tree() +
   geom_tiplab() +
   geom_nodelab(aes(label = node), family = "Fira Code", size = 2) 
 
 ```
 
 ```{r}
-df_sak_old <- df_sak |> filter(str_detect(short_name, pattern = "OLD")) 
+df_sak_old <- df_sak |> filter(str_detect(short_name, pattern = "OLD") | str_detect(short_name, pattern = "OUT")) 
   # doesn't have to be nj but who cares
 ```
 
@@ -76,6 +76,7 @@ plot_sak_pheno_weight_nj <-
     aes(x = 0, y = weight, label = introduced), 
     size = 2, 
     family = "Fira Code",
+    hjust = 1.2,
   ) +
   scale_colour_viridis_c(trans="log10", option = "A") +
   scale_y_continuous(trans = "log10") +
@@ -91,7 +92,7 @@ plot_sak_pheno_weight_upgma <-
     aes(x = 0, y = weight, label = introduced), 
     size = 2, 
     family = "Fira Code",
-
+    hjust = 1.2,
   ) +
   scale_colour_viridis_c(trans="log10", option = "A") +
   scale_y_continuous(trans = "log10") +
@@ -111,7 +112,7 @@ plot_sak_pheno_width_nj <-
     aes(x = 0, y = width,label = introduced), 
     size = 2, 
     family = "Fira Code",
-
+    hjust = 1.2,
     ) +
   scale_colour_viridis_c(trans="log10") +
   scale_y_continuous(trans = "log10") +
@@ -129,7 +130,7 @@ geom_text(
     aes(x = 0, y = width,label = introduced), 
     size = 2, 
     family = "Fira Code",
-
+    hjust = 1.2,
     ) + 
   scale_colour_viridis_c(trans="log10") +
   scale_y_continuous(trans = "log10") +
@@ -150,10 +151,10 @@ plot_sak_pheno_Functions_nj <-
     aes(x = 0, y = Functions,label = introduced), 
     size = 2, 
     family = "Fira Code",
-
+    hjust = 1.2,
     ) +
   scale_colour_viridis_c(trans="log10") +
-    scale_y_continuous(trans = "log10") +
+  scale_y_continuous(trans = "log10") +
   xlab("genetic distance") +
   expand_limits(x = -1) +
   theme_bw(base_family = "Fira Code") +
@@ -167,10 +168,10 @@ plot_sak_pheno_Functions_upgma <-
     aes(x = 0, y = Functions,label = introduced), 
     size = 2, 
     family = "Fira Code",
-
+    hjust = 1.2,
     ) +
   scale_colour_viridis_c(trans="log10") +
-    scale_y_continuous(trans = "log10") +
+  scale_y_continuous(trans = "log10") +
   ylab("functions") +
   
   xlab("time") +
@@ -195,9 +196,9 @@ ggsave(filename = "output/sak_pheno.pdf",
        device = cairo_pdf,
        dpi = 450,
        unit = "mm",
-       height = 190, # pixelsでのサイズ
-       width = 166,  # pixelsでのサイズ
-       limitsize = FALSE)
+       height = 300, 
+       width = 250,  
+       limitsize = FALSE) # 本来はwidth = 166にして色々文字サイズを調整したりすべきだが、まぁ…
 ```
 
 

@@ -5,27 +5,104 @@ output: html_notebook
 
 # sak
 
+
+## convert continuous variables to categoricals (not used)
+
 ```{r}
-df_sak <- data_sak_raw |> 
-  mutate(id = paste0(class, short_name)) |> 
-  filter(short_name != "OUT.Buck") |> 
+data_sak_raw$class |> quantile()
+data_sak_raw$weight |> quantile() #  16.40  49.30  98.00 131.25 351.00 
+data_sak_raw$width |> quantile() # 4.800 13.575 16.100 20.950 64.600 
+data_sak_raw$width |> hist()
+data_sak_raw$Functions |> quantile() # 1 7 11 17 81
+data_sak_raw$Functions |> hist() 
+data_sak_raw |> 
+  ggplot(aes(width, Functions, label = short_name)) +
+  geom_text(size = 1.5) +
+  geom_vline(xintercept = c(4.8, 13.575, 16.1, 20.95, 64.6)) +
+  geom_hline(yintercept = c(7, 11, 17, 81)) +
+  scale_x_continuous(trans = "log10") +
+  scale_y_continuous(trans = "log10") 
+data_sak_raw |> 
+  ggplot(aes(width, weight, label = short_name)) +
+  geom_text(size = 1.5) +
+  geom_vline(xintercept = c(4.8, 13.575, 16.1, 20.95, 64.6)) +
+  geom_hline(yintercept = c(15, 50, 100, 130)) +
+  scale_x_continuous(trans = "log10") +
+  scale_y_continuous(trans = "log10") 
+```
+
+
+```{r}
+df_sak_longer <- data_sak_raw |> 
   # filter(short_name != "OUT.Buck") |> 
-  mutate(layer_category = case_when(
-    Layers == 1 ~ "Layer1",
-    Layers == 2 ~ "Layers2",
-    Layers == 3 ~ "Layers3",
-    Layers == 4 ~ "Layers4",
-    Layers > 4 ~ "LayersMoreThan4"
+  mutate(
+    layer_category = case_when(
+      Layers == 1 ~ "Layer1",
+      Layers == 2 ~ "Layers2",
+      Layers == 3 ~ "Layers3",
+      Layers == 4 ~ "Layers4",
+      Layers > 4 ~ "LayersMoreThan4"
     ),
-    value = 1L
-  ) |>
-  pivot_wider(names_from = layer_category, values_from =value, values_fill = 0L) |> 
+    class_category = case_when(
+      class < 84 ~ "class_Small", # 58
+      class < 93 ~ "class_Middle", # 84, 91,
+      class < 111 ~ "class_Large", # 100,93
+      class >= 111 ~ "class_XL" # 111, 124 (Buck)
+    ),
+    weight_category = case_when( # 16.40  49.30  98.00 131.25 351.00
+      weight < 50 ~ "weight_Small",
+      weight < 100 ~ "weight_Middle",
+      weight < 130 ~ "weight_Large",
+      weight < 300 ~ "weight_XL",
+      weight >= 300 ~ "weight_XXL",
+    ),
+    width_category = case_when( # 4.800 13.575 16.100 20.950 64.600
+      width < 12 ~ "width_Small",
+      width < 20 ~ "width_Middle",
+      width < 30 ~ "width_Large",
+      width < 50 ~ "width_XL",
+      width >= 50 ~ "width_XXL",
+    ),
+    func_category = case_when( # 1 7 11 17 81
+      Functions < 5 ~ "func_Small", 
+      Functions < 10 ~ "func_Middle", 
+      Functions < 15 ~ "func_Large", 
+      Functions < 20 ~ "func_XL",
+      Functions <= 81 ~ "func_XXL",
+    ),
+    value_layer = 1L,
+    value_class = 1L,
+    value_weight = 1L,
+    value_width = 1L,
+    value_func = 1L
+  ) 
+df_sak_longer |>
+  ggplot(aes(func_category)) +
+  geom_bar()
+```
+
+
+```{r}
+df_sak_wider <- df_sak_longer |> 
+  pivot_wider(names_from = layer_category, values_from = value_layer, values_fill = 0L) |> 
+  pivot_wider(names_from = class_category, values_from = value_class, values_fill = 0L) |> 
+  # pivot_wider(names_from = weight_category, values_from = value_weight, values_fill = 0L) |> 
+  # pivot_wider(names_from = width_category, values_from = value_width, values_fill = 0L) |> 
+  pivot_wider(names_from = func_category, values_from = value_func, values_fill = 0L) |> 
   relocate(starts_with("Layer"), .before = Lock) |> 
-  relocate("Layer1", .after = "Layers") |> 
+  relocate("Layer1", .after = "Layers")
+```
+
+# data (without continuous-categorical variables)
+
+```{r}
+df_sak <- data_sak_raw |>  
   select(-sak)　 |> 
   rowid_to_column(var = "node") |> 
   mutate(node = node |> as.integer())
+# View(df_sak)
 ```
+
 ## corresp
 
 data <https://www1.doshisha.ac.jp/~mjin/R/Chap_26/26.html> use FactoMineR instead of MASS to get eigen values
@@ -33,8 +110,7 @@ data <https://www1.doshisha.ac.jp/~mjin/R/Chap_26/26.html> use FactoMineR instea
 ```{r fig.width=5, figh.height = 3}
 
 df_sak_factor <- df_sak |> 
-  # filter(Price ) |> # remove swissChampXAVT
-  select(Layer1:`MAT_Scale:BrassWood`) |> 
+  select(Lock:`MAT_Scale:IsMetalGroup`) |> 
   mutate(across(everything(), as.factor))
 sak_mca <- MCA(df_sak_factor, ncp = 2, graph = FALSE)
 
@@ -63,7 +139,7 @@ df_sak_factor2 <- bind_cols(df_sak, df_sak_mca_coord)
 
 ```{r}
 df_sak_factor2 |>
-  ggplot(aes(-mca_x, mca_y, label = short_name, colour = weight)) +
+  ggplot(aes(-mca_x, mca_y, label = short_name, colour = Functions)) +
   # geom_point(data = df_sak_factor2 |> select(-class), colour = "grey70") +
   geom_text(aes(label = class),
             family = "Alte DIN 1451 Mittelschrift",
@@ -81,7 +157,7 @@ df_sak_factor2 |>
     segment.colour = NA
     
     ) +
-  scale_colour_viridis_c(trans = "log10") +
+  scale_colour_viridis_c(trans = "log10", limits = c(1, 35)) +
   scale_size_area() +
   # labs(colour = "Price (1k yen)" ) +
   xlab(paste0("Dimension 1 (", sak_corresp_dim1_ev |> round(digits = 1), "%)")) +
@@ -89,10 +165,12 @@ df_sak_factor2 |>
   theme_bw(base_family = "Fira Code") +
   theme(panel.background = element_rect(fill = "white", colour = "black")) +
   guides(colour = guide_colourbar(barwidth = 5, barheight = .5), direction = "horizontal") +
-  theme(legend.direction = "horizontal", legend.position = c(0.2, 0.9),
+  theme(legend.direction = "horizontal", legend.position = c(0.1, 0.1),
         panel.grid = element_blank())
+```
 
-
+### if fine, save
+```{r}
 ggsave(filename = "output/sak_correspXY_all.pdf", 
          device = cairo_pdf,
          dpi = 300,
@@ -134,7 +212,7 @@ fviz_sil
 plot_sak_sil <- df_fviz_sil |>   
   ggplot(aes(clusters, y)) +
   geom_line() +
-  geom_vline(xintercept = 4, linetype = "dashed", colour = "gray90") +
+  geom_vline(xintercept = 15, linetype = "dashed", colour = "gray90") +
   ylab("Avg sil width") +
   xlab("No of clusters k") +
   theme_classic(base_family = "Fira Code")
@@ -153,18 +231,27 @@ ggsave(filename = "output/sak_sil_elbow.pdf",
 
 ```
 
-## UPGMA
 
-### hamming
+
+# distance: hamming
 
 SplitsTree4のUncorrectedPがHamming距離である。、{e1071}の`hamming.distance()`をつかう。`hammingdists()`はダメ
 
 ```{r}
 sak_dist <- hamming.distance(df_sak_factor |> as.matrix()) |> as.dist()
+sak_dist |> nj() |> plot()
+```
 
+# construct trees
+
+## construct a UPGMA tree
+
+```{r}
 sak_upgma <- sak_dist |>
   hclust(method = "average") |> # average = UPGMA
    as.phylo()
+sak_upgma$tip.label <- df_sak$short_name
+
 sak_upgma |> 
   plot.phylo(type = "u", use.edge.length = TRUE, lab4ut = "axial")
 ```
@@ -175,7 +262,8 @@ sak_upgma |>
 sak_nj <- sak_dist |> nj()
 sak_nj$tip.label <- df_sak$short_name
 sak_nj |> 
-  plot.phylo(type = "u", use.edge.length = TRUE, lab4ut = "axial")
+  ggtree(layout = "ape") +
+  geom_tiplab(size = 2, hjust = -.1)
 ```
 
 ## join traits
@@ -186,11 +274,11 @@ sak_nj |>
 df_sak_upgma <- sak_upgma |>
   as_tibble() |> 
   left_join(df_sak_rowid, by = "node") |> 
-  select(parent:class, short_name, Functions, width, weight, id) |> 
-    mutate(short_name = if_else(is.na(short_name), node |> as.character(), short_name)) |> 
- column_to_rownames(var = "short_name") |> 
+  select(parent:class, short_name, Functions, width, weight) |> 
+  mutate(short_name = if_else(is.na(short_name), node |> as.character(), short_name)) |> 
+  column_to_rownames(var = "short_name") |> 
   mutate(node = node |> as.numeric()) |> 
-  select(node, class, id, Functions, weight, width) # temporarily limite
+  select(node, class, Functions, weight, width) # temporarily limite
 sak_upgma$tip.label <- df_sak$short_name
 ```
 
@@ -200,11 +288,11 @@ sak_upgma$tip.label <- df_sak$short_name
 df_sak_nj <- sak_nj |> 
   as_tibble() |> 
   left_join(df_sak_rowid, by = "node") |> 
-  select(parent:class, short_name, Functions, width, weight, id) |> 
+  select(parent:class, short_name, Functions, width, weight) |> 
   mutate(short_name = if_else(is.na(short_name), node |> as.character(), short_name)) |> 
   column_to_rownames(var = "short_name") |> 
   mutate(node = node |> as.numeric()) |> 
-  select(node, class, id, Functions, weight, width)
+  select(node, class, Functions, weight, width)
 ```
 
 
@@ -215,6 +303,18 @@ df_sak_nj <- sak_nj |>
 sak_upgma2 <- full_join(sak_upgma, df_sak_upgma, by = "node")
 sak_nj2 <- full_join(sak_nj, df_sak_nj, by = "node")
 ```
+
+```{r}
+sak_upgma2 |> 
+  ggtree(layout = "ape", aes(colour = class)) +
+  geom_tiplab(aes(label = paste0(class, label)), size = 2, hjust = -0.2) +
+  scale_colour_viridis_c()
+sak_nj2 |> 
+  ggtree(layout = "ape", aes(colour = class)) +
+  geom_tiplab(aes(label = paste0(class, label)), size = 2, hjust = -0.2) +
+  scale_colour_viridis_c()
+```
+
 
 
 # appendices

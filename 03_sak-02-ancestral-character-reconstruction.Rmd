@@ -12,36 +12,48 @@ would NJ reconstruct ancestral state better than UPGMA without OLD data?
 ```{r}
 df_sak_modern <- df_sak |> 
   filter(!str_detect(short_name, pattern = "OLD")) |> 
+  filter(!str_detect(short_name, pattern = "OUT")) |> 
+  select(-node) |> # this node column is from old rowid so delete it
+  rowid_to_column(var = "node") |> # and reassign the id again
   mutate(node = node |> as.integer())
-
+# View(df_sak_modern)
 # filter only 0/1 categorical variables
-df_sak_factor_modern <- df_sak_modern |> 
-  select(Layer1:`MAT_Scale:BrassWood`) |> 
-  mutate(across(everything(), as.factor))
-sak_dist_modern <- hamming.distance(df_sak_factor_modern |> as.matrix()) |> as.dist()
+df_sak_factor_modern <-
+  df_sak_modern |> 
+  select(Lock:`MAT_Scale:IsMetalGroup`) |> 
+  select(where(~(sum(.) > 0  & sum(.) < nrow(df_sak_modern)))) |> 
+  mutate(across(everything(), as.factor)) 
+summary(df_sak_factor_modern)
+df_sak_factor_modern
+# View(df_sak_factor_modern) # [55, 89]
+sak_dist_modern <- 
+  hamming.distance(df_sak_factor_modern |>as.matrix()) |> 
+  as.dist()
+sak_dist_modern |> dim() # [55, 55]
 # hammingdists is too buggy so changing to hamming.distance in e1071
 # sak_dist_modern <- df_sak_factor_modern |> 
 #   hammingdists() # 5sec
-
+sak_dist_modern |> nj() |> plot(type = "u")
 ```
 
 ## construct UPGMA and NJ trees
 
 ### UPGMA
 
-```{r}
+```{r fig.width = 5, fig.height = 5}
 sak_upgma_modern <- sak_dist_modern |>
   hclust(method = "average") |> # average = UPGMA
    as.phylo()
 df_sak_upgma_modern <- sak_upgma_modern |>
   as_tibble() |> 
   left_join(df_sak_modern, by = "node") |> 
-  select(parent:class, short_name, Functions, width, weight, id) |> 
+  select(parent:class, short_name, Functions, width, weight) |> 
     mutate(short_name = if_else(is.na(short_name), node |> as.character(), short_name)) |> 
  column_to_rownames(var = "short_name") |> 
   mutate(node = node |> as.numeric()) |> 
-  select(node, class, id, Functions, weight, width) # temporarily limite
+  select(node, class, Functions, weight, width)
 sak_upgma_modern$tip.label <- df_sak_modern$short_name
+sak_upgma_modern |> plot(type = "u")
 ```
 
 
@@ -50,20 +62,20 @@ sak_upgma_modern$tip.label <- df_sak_modern$short_name
 ```{r fig.width = 8, fig.height = 8}
 sak_nj_modern <- sak_dist_modern |> 
   nj() 
-sak_nj_modern$tip.label <- df_sak_modern$short_name
 sak_nj_modern |> plot()
-df_sak_nj_modern <- sak_nj_modern |> 
-  as_tibble() |> 
-  left_join(df_sak_modern, by = "node") |> 
-  select(parent:class, short_name, Functions, width, weight, id) |> 
+sak_nj_modern$tip.label <- df_sak_modern$short_name
+df_sak_nj_modern <- 
+  sak_nj_modern |> 
+  as_tibble() |>
+  left_join(df_sak_modern, by = "node") |>
+  select(parent:class, short_name, Functions, width, weight) |> 
   mutate(short_name = if_else(is.na(short_name), node |> as.character(), short_name)) |> 
   column_to_rownames(var = "short_name") |> 
   mutate(node = node |> as.numeric()) |> 
-  select(node, class, id, Functions, weight, width)
-df_sak_modern |> View()
-
-View(df_sak_nj_modern)
+  select(node, class, Functions, weight, width)
 sak_nj_modern2 <- full_join(sak_nj_modern, df_sak_nj_modern, by = "node")
+# quick plot just to check the data is prob  correct
+
 
 sak_nj_modern2 |> 
     ggtree(layout = "ape", aes(colour = weight)) +
@@ -85,7 +97,7 @@ sak_nj_modern2 |>
 
 
 
-## root
+## root [obsolete]
 
 NJについてはrootしたバージョンでfastAncをしたいので、まずRootをつける・・・と思っていたが、Rootをつけるところで恣意的にできてしまって中立な感じではないので、アルゴリズムにまかせてしまったほうがよい気がしてきた…とりあえずコードは遺しておく。
 
@@ -118,11 +130,13 @@ sak_nj_modern_rooted |> plot()
 ```
 # phytools fastAnc
 
-## kyoutsuu 
 
-#### modern, outgroup, old, everything
 
 ```{r}
+## kyoutsuu 
+
+#### kyoutsuu: modern, outgroup, old, everything
+
 # create a named number vector of weights (in gram) of SAKs
 sak_trait_weight <- df_sak |> 
   select(weight) |> 
@@ -141,10 +155,9 @@ sak_trait_weight_named_num <- sak_trait_weight[, 1][1:nrow(df_sak)]
 sak_trait_width_named_num <- sak_trait_width[, 1][1:nrow(df_sak)]
 sak_trait_class_named_num <- sak_trait_class[, 1][1:nrow(df_sak)]
 sak_trait_function_named_num <- sak_trait_function[, 1][1:nrow(df_sak)]
-```
-#### modern
 
-```{r}
+#### kyoutsuu: modern
+
 # create a named number vector of weights (in gram) of SAKs
 sak_trait_weight_modern <- df_sak_modern |> 
   select(weight) |> 
@@ -163,22 +176,16 @@ sak_trait_weight_modern_named_num <- sak_trait_weight_modern[, 1][1:nrow(df_sak_
 sak_trait_width_modern_named_num <- sak_trait_width_modern[, 1][1:nrow(df_sak_modern)]
 sak_trait_class_modern_named_num <- sak_trait_class_modern[, 1][1:nrow(df_sak_modern)]
 sak_trait_function_modern_named_num <- sak_trait_function_modern[, 1][1:nrow(df_sak_modern)]
-```
 
 ## UPGMA
-
-
-now fit the data to nodes using UPGMA tree. dunno how to vectorize them so i just iterate it over weight, class, width, and function.
-
+# now fit the data to nodes using UPGMA tree. dunno how to vectorize them so i just iterate it over weight, class, width, and function.
 #### modern, outgroup, old, everything
-
-```{r}
 sak_fit_upgma_weight <- fastAnc(
   sak_upgma, 
   sak_trait_weight_named_num,
   vars = TRUE, 
   CI = TRUE)
-df_sak_upgma$weight[(nrow(df_sak) + 1): nrow(df_sak_upgma)] <- sak_fit_upgma_weight$ace
+df_sak_upgma$weight[(nrow(df_sak) + 1):nrow(df_sak_upgma)] <- sak_fit_upgma_weight$ace
 
 
 # fill NA (Officer, which I couldn't find ANY width data anywhere...)
@@ -188,67 +195,61 @@ sak_fit_upgma_width <- fastAnc(
   sak_trait_width_named_num,
   vars = TRUE, 
   CI = TRUE)
-df_sak_upgma$width[(nrow(df_sak) + 1): nrow(df_sak_upgma)] <- sak_fit_upgma_width$ace
+df_sak_upgma$width[(nrow(df_sak) + 1):nrow(df_sak_upgma)] <- sak_fit_upgma_width$ace
 
 sak_fit_upgma_class <- fastAnc(
   sak_upgma, 
   sak_trait_class_named_num,
   vars = TRUE, 
   CI = TRUE)
-df_sak_upgma$class[(nrow(df_sak) + 1): nrow(df_sak_upgma)] <- sak_fit_upgma_class$ace
+df_sak_upgma$class[(nrow(df_sak) + 1):nrow(df_sak_upgma)] <- sak_fit_upgma_class$ace
 
 sak_fit_upgma_function <- fastAnc(
   sak_upgma, 
   sak_trait_function_named_num,
   vars = TRUE, 
   CI = TRUE)
-df_sak_upgma$Functions[(nrow(df_sak) + 1): nrow(df_sak_upgma)] <- sak_fit_upgma_function$ace
-```
+df_sak_upgma$Functions[(nrow(df_sak) + 1):nrow(df_sak_upgma)] <- sak_fit_upgma_function$ace
 
-#### modern
+#### UPGMA: modern
 
-```{r}
 sak_fit_upgma_weight_modern <- fastAnc(
   sak_upgma_modern, 
   sak_trait_weight_modern_named_num,
   vars = TRUE, 
   CI = TRUE)
-df_sak_upgma_modern$weight[(nrow(df_sak_modern) + 1): nrow(df_sak_upgma_modern)] <- sak_fit_upgma_weight_modern$ace
+df_sak_upgma_modern$weight[(nrow(df_sak_modern) + 1):nrow(df_sak_upgma_modern)] <- sak_fit_upgma_weight_modern$ace
 
 sak_fit_upgma_width_modern <- fastAnc(
   sak_upgma_modern, 
   sak_trait_width_modern_named_num,
   vars = TRUE, 
   CI = TRUE)
-df_sak_upgma_modern$width[(nrow(df_sak_modern) + 1): nrow(df_sak_upgma_modern)] <- sak_fit_upgma_width_modern$ace
+df_sak_upgma_modern$width[(nrow(df_sak_modern) + 1):nrow(df_sak_upgma_modern)] <- sak_fit_upgma_width_modern$ace
 
 sak_fit_upgma_class_modern <- fastAnc(
   sak_upgma_modern, 
   sak_trait_class_modern_named_num,
   vars = TRUE, 
   CI = TRUE)
-df_sak_upgma_modern$class[(nrow(df_sak_modern) + 1): nrow(df_sak_upgma_modern)] <- sak_fit_upgma_class_modern$ace
+df_sak_upgma_modern$class[(nrow(df_sak_modern) + 1):nrow(df_sak_upgma_modern)] <- sak_fit_upgma_class_modern$ace
 
 sak_fit_upgma_function_modern <- fastAnc(
   sak_upgma_modern, 
   sak_trait_function_modern_named_num,
   vars = TRUE, 
   CI = TRUE)
-df_sak_upgma_modern$Functions[(nrow(df_sak_modern) + 1): nrow(df_sak_upgma_modern)] <- sak_fit_upgma_function_modern$ace
-```
+df_sak_upgma_modern$Functions[(nrow(df_sak_modern) + 1):nrow(df_sak_upgma_modern)] <- sak_fit_upgma_function_modern$ace
 
-
-## NJ
+### NJ
 #### NJ modern, outgroup, old, everything
 
-```{r}
 sak_fit_nj_weight <- fastAnc(
   sak_nj, 
   sak_trait_weight_named_num,
   vars = TRUE, 
   CI = TRUE)
-df_sak_nj$weight[(nrow(df_sak) + 1): nrow(df_sak_nj)] <- sak_fit_nj_weight$ace
-
+df_sak_nj$weight[(nrow(df_sak) + 1):nrow(df_sak_nj)] <- sak_fit_nj_weight$ace
 
 # fill NA (Officer, which I couldn't find ANY width data anywhere...)
 sak_trait_width_named_num[is.na(sak_trait_width_named_num)] <- 20.5 # borrow from old soldier knife
@@ -257,53 +258,58 @@ sak_fit_nj_width <- fastAnc(
   sak_trait_width_named_num,
   vars = TRUE, 
   CI = TRUE)
-df_sak_nj$width[(nrow(df_sak) + 1): nrow(df_sak_nj)] <- sak_fit_nj_width$ace
+df_sak_nj$width[(nrow(df_sak) + 1):nrow(df_sak_nj)] <- sak_fit_nj_width$ace
 
 sak_fit_nj_class <- fastAnc(
   sak_nj, 
   sak_trait_class_named_num,
   vars = TRUE, 
   CI = TRUE)
-df_sak_nj$class[(nrow(df_sak) + 1): nrow(df_sak_nj)] <- sak_fit_nj_class$ace
+df_sak_nj$class[(nrow(df_sak) + 1):nrow(df_sak_nj)] <- sak_fit_nj_class$ace
 
 sak_fit_nj_function <- fastAnc(
   sak_nj, 
   sak_trait_function_named_num,
   vars = TRUE, 
   CI = TRUE)
-df_sak_nj$Functions[(nrow(df_sak) + 1): nrow(df_sak_nj)] <- sak_fit_nj_function$ace
-```
+df_sak_nj$Functions[(nrow(df_sak) + 1):nrow(df_sak_nj)] <- sak_fit_nj_function$ace
 
 #### NJ modern
 
-```{r}
 sak_fit_nj_weight_modern <- fastAnc(
   sak_nj_modern, 
   sak_trait_weight_modern_named_num,
   vars = TRUE, 
   CI = TRUE)
-df_sak_nj_modern$weight[(nrow(df_sak_modern) + 1): nrow(df_sak_nj_modern)] <- sak_fit_nj_weight_modern$ace
+df_sak_nj_modern$weight[(nrow(df_sak_modern) + 1):nrow(df_sak_nj_modern)] <- sak_fit_nj_weight_modern$ace
 
 sak_fit_nj_width_modern <- fastAnc(
   sak_nj_modern, 
   sak_trait_width_modern_named_num,
   vars = TRUE, 
   CI = TRUE)
-df_sak_nj_modern$width[(nrow(df_sak_modern) + 1): nrow(df_sak_nj_modern)] <- sak_fit_nj_width_modern$ace
+df_sak_nj_modern$width[(nrow(df_sak_modern) + 1):nrow(df_sak_nj_modern)] <- sak_fit_nj_width_modern$ace
 
 sak_fit_nj_class_modern <- fastAnc(
   sak_nj_modern, 
   sak_trait_class_modern_named_num,
   vars = TRUE, 
   CI = TRUE)
-df_sak_nj_modern$class[(nrow(df_sak_modern) + 1): nrow(df_sak_nj_modern)] <- sak_fit_nj_class_modern$ace
+df_sak_nj_modern$class[(nrow(df_sak_modern) + 1):nrow(df_sak_nj_modern)] <- sak_fit_nj_class_modern$ace
 
 sak_fit_nj_function_modern <- fastAnc(
   sak_nj_modern, 
   sak_trait_function_modern_named_num,
   vars = TRUE, 
   CI = TRUE)
-df_sak_nj_modern$Functions[(nrow(df_sak_modern) + 1): nrow(df_sak_nj_modern)] <- sak_fit_nj_function_modern$ace
+df_sak_nj_modern$Functions[(nrow(df_sak_modern) + 1):nrow(df_sak_nj_modern)] <- sak_fit_nj_function_modern$ace
+```
+
+check
+
+is `df_sak_nj_modern` ok? `NaN` included?
+```{r}
+View(df_sak_nj_modern)
 ```
 
 

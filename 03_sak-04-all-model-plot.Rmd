@@ -19,9 +19,14 @@ sak_upgma4 |>
   scale_colour_viridis_c(trans="log10") +
   geom_tiplab(aes(colour = class, label = id), size = 2.5,nudge_x = .1) +
   geom_treescale(x = 0.1, y = 30) +
-  expand_limits(x = 20) +
+  expand_limits(x = 13) +
   theme(legend.position = c(0.1, .9))
-
+ggsave(file = "output/sak_UPGMA_withoutOutgroup.pdf",
+       device = cairo_pdf,
+       unit = "mm",
+       height = 300, 
+       width = 250,  
+       )
 
 sak_nj5 |> 
   root(outgroup = 40) |> 
