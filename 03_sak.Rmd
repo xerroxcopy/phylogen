@@ -43,38 +43,38 @@ df_sak_longer <- data_sak_raw |>
       Layers == 4 ~ "Layers4",
       Layers > 4 ~ "LayersMoreThan4"
     ),
-    class_category = case_when(
-      class < 84 ~ "class_Small", # 58
-      class < 93 ~ "class_Middle", # 84, 91,
-      class < 111 ~ "class_Large", # 100,93
-      class >= 111 ~ "class_XL" # 111, 124 (Buck)
-    ),
-    weight_category = case_when( # 16.40  49.30  98.00 131.25 351.00
-      weight < 50 ~ "weight_Small",
-      weight < 100 ~ "weight_Middle",
-      weight < 130 ~ "weight_Large",
-      weight < 300 ~ "weight_XL",
-      weight >= 300 ~ "weight_XXL",
-    ),
-    width_category = case_when( # 4.800 13.575 16.100 20.950 64.600
-      width < 12 ~ "width_Small",
-      width < 20 ~ "width_Middle",
-      width < 30 ~ "width_Large",
-      width < 50 ~ "width_XL",
-      width >= 50 ~ "width_XXL",
-    ),
-    func_category = case_when( # 1 7 11 17 81
-      Functions < 5 ~ "func_Small", 
-      Functions < 10 ~ "func_Middle", 
-      Functions < 15 ~ "func_Large", 
-      Functions < 20 ~ "func_XL",
-      Functions <= 81 ~ "func_XXL",
-    ),
+    # class_category = case_when(
+    #   class < 84 ~ "class_Small", # 58
+    #   class < 93 ~ "class_Middle", # 84, 91,
+    #   class < 111 ~ "class_Large", # 100,93
+    #   class >= 111 ~ "class_XL" # 111, 124 (Buck)
+    # ),
+    # weight_category = case_when( # 16.40  49.30  98.00 131.25 351.00
+    #   weight < 50 ~ "weight_Small",
+    #   weight < 100 ~ "weight_Middle",
+    #   weight < 130 ~ "weight_Large",
+    #   weight < 300 ~ "weight_XL",
+    #   weight >= 300 ~ "weight_XXL",
+    # ),
+    # width_category = case_when( # 4.800 13.575 16.100 20.950 64.600
+    #   width < 12 ~ "width_Small",
+    #   width < 20 ~ "width_Middle",
+    #   width < 30 ~ "width_Large",
+    #   width < 50 ~ "width_XL",
+    #   width >= 50 ~ "width_XXL",
+    # ),
+    # func_category = case_when( # 1 7 11 17 81
+    #   Functions < 5 ~ "func_Small", 
+    #   Functions < 10 ~ "func_Middle", 
+    #   Functions < 15 ~ "func_Large", 
+    #   Functions < 20 ~ "func_XL",
+    #   Functions <= 81 ~ "func_XXL",
+    # ),
     value_layer = 1L,
-    value_class = 1L,
-    value_weight = 1L,
-    value_width = 1L,
-    value_func = 1L
+    # value_class = 1L,
+    # value_weight = 1L,
+    # value_width = 1L,
+    # value_func = 1L
   ) 
 df_sak_longer |>
   ggplot(aes(func_category)) +
@@ -85,10 +85,10 @@ df_sak_longer |>
 ```{r}
 df_sak_wider <- df_sak_longer |> 
   pivot_wider(names_from = layer_category, values_from = value_layer, values_fill = 0L) |> 
-  pivot_wider(names_from = class_category, values_from = value_class, values_fill = 0L) |> 
+  # pivot_wider(names_from = class_category, values_from = value_class, values_fill = 0L) |> 
   # pivot_wider(names_from = weight_category, values_from = value_weight, values_fill = 0L) |> 
   # pivot_wider(names_from = width_category, values_from = value_width, values_fill = 0L) |> 
-  pivot_wider(names_from = func_category, values_from = value_func, values_fill = 0L) |> 
+  # pivot_wider(names_from = func_category, values_from = value_func, values_fill = 0L) |> 
   relocate(starts_with("Layer"), .before = Lock) |> 
   relocate("Layer1", .after = "Layers")
 ```
@@ -101,6 +101,10 @@ df_sak <- data_sak_raw |>
   rowid_to_column(var = "node") |> 
   mutate(node = node |> as.integer())
 # View(df_sak)
+df_sak <- data_sak_raw_old |>  
+  select(-sak)　 |> 
+  rowid_to_column(var = "node") |> 
+  mutate(node = node |> as.integer())
 ```
 
 ## corresp
@@ -235,11 +239,11 @@ ggsave(filename = "output/sak_sil_elbow.pdf",
 
 # distance: hamming
 
-SplitsTree4のUncorrectedPがHamming距離である。、{e1071}の`hamming.distance()`をつかう。`hammingdists()`はダメ
+SplitsTree4のUncorrectedPがHamming距離である。{e1071}の`hamming.distance()`をつかう。`hammingdists()`はダメ
 
 ```{r}
 sak_dist <- hamming.distance(df_sak_factor |> as.matrix()) |> as.dist()
-sak_dist |> nj() |> plot()
+# sak_dist |> nj() |> plot() # do not plot distance directly using nj()! it breaks everything, idk why
 ```
 
 # construct trees

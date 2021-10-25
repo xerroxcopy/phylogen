@@ -56,6 +56,27 @@ classは離散的すぎるので興味深くないのでパスした
 ## phenogram plot
 
 ```{r}
+sak_nj3 |> as_tibble() |> View()
+```
+
+```{r}
+  sak_nj3 |>
+  ggtree(aes(colour = width), continuous = "colour", yscale = "weight") +
+  geom_text(
+    data = df_sak_old, 
+    aes(x = 0, y = weight, label = introduced), 
+    size = 2, 
+    family = "Fira Code",
+    hjust = 1.2,
+  ) +
+  scale_colour_viridis_c(trans="log10", option = "A") +
+  scale_y_continuous(trans = "log10") +
+  expand_limits(x = -1) +
+  # theme_bw(base_family = "Fira Code") +
+  theme_phenogram
+```
+
+```{r}
 aspect_ratio <- .67
 theme_phenogram <-  
   theme(

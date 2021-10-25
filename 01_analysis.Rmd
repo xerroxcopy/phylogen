@@ -11,16 +11,16 @@ output: html_notebook
 # library(MASS) # corresp analysis for sak. load before tidyverse so that it won't mask select from dplyr
 library(tidyverse)
 library(googlesheets4)
-library(lubridate)
+# library(lubridate)
 library(fontregisterer)
-library(ggridges)
+# library(ggridges)
 library(ggrepel)
-library(sf) # for anthro map
-library(rnaturalearth) # for anthro map
-library(rnaturalearthdata) # for anthro map
+# library(sf) # for anthro map
+# library(rnaturalearth) # for anthro map
+# library(rnaturalearthdata) # for anthro map
 library(ape) # https://www1.doshisha.ac.jp/~mjin/R/Chap_28/28.html
 # library(poppr) # https://grunwaldlab.github.io/poppr/reference/upgma.html
-library(ggdendro) # https://cran.r-project.org/web/packages/ggdendro/vignettes/ggdendro.html
+# library(ggdendro) # https://cran.r-project.org/web/packages/ggdendro/vignettes/ggdendro.html
 library(FactoMineR) # for MCA(), not mca()
 library(factoextra) # fviz_cluster
 # https://bioconductor.org/packages/release/bioc/html/ggtree.html
@@ -31,7 +31,6 @@ library(factoextra) # fviz_cluster
 library(phangorn) # neighbornet
 library(ggtree)
 # library(cultevo) # hamming distance ("uncorrectedP" in splitsTree4)
-library(phytools) # fastAnc
 # names(quartzFonts())
 # remotes::install_github("KlausVigo/ggnetworx")
 # library(ggnetworx) # plot networx. is this identical to tanggle?
@@ -39,10 +38,12 @@ library(phytools) # fastAnc
 #     install.packages("BiocManager")
 # 
 # BiocManager::install("tanggle")
-library(tanggle) # https://klausvigo.github.io/tanggle/articles/tanggle_vignette.html
-library(RRphylo) # https://cran.r-project.org/web/packages/RRphylo/vignettes/RRphylo.html
+# library(tanggle) # https://klausvigo.github.io/tanggle/articles/tanggle_vignette.html
+# library(RRphylo) # https://cran.r-project.org/web/packages/RRphylo/vignettes/RRphylo.html
 library(cowplot) # ggally??
-library(e1071)
+library(e1071) # for hamming
+library(phytools)
+
 ```
 
 ```{r}
@@ -60,7 +61,7 @@ knitr::opts_chunk$set(dev = "ragg_png")
 data_anth_raw <- read_sheet("https://docs.google.com/spreadsheets/d/1VZzjCMs21iBTIXoHR2Ph8wqyS8jQBlS4TDAmJXYjVKI/edit?usp=sharing", sheet = "anthropomorphic artefacts")
 data_sak_raw <- read_sheet("https://docs.google.com/spreadsheets/d/1VZzjCMs21iBTIXoHR2Ph8wqyS8jQBlS4TDAmJXYjVKI/edit?usp=sharing", sheet = "swiss army knives")
 data_idol_raw <- read_sheet("https://docs.google.com/spreadsheets/d/1VZzjCMs21iBTIXoHR2Ph8wqyS8jQBlS4TDAmJXYjVKI/edit?usp=sharing", sheet = "idol lightsticks")
-# data_sak_raw |> filter(short_name == "Farmer") |> select(KeyRing)
+data_sak_raw_old <- read_sheet("https://docs.google.com/spreadsheets/d/1Spgc75_EZV1eVJkGVIdzKFlbSIWLxXzeDB1gazu2Res/edit?usp=sharing", sheet = "swiss army knives")
 ```
 
 
