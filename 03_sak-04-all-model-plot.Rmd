@@ -3,38 +3,130 @@ title: "R Notebook"
 output: html_notebook
 ---
 
+# join df for plot
+
 ```{r}
-sak_upgma4 <- full_join(sak_upgma, df_sak_upgma, by = "node") # rooted, full model
-sak_nj5 <- full_join(sak_nj, df_sak_nj, by = "node") |> 
-  mutate(id = if_else(is.na(id), paste0("node", node), id)) # unrooted, all
+sak_upgma_ace  <- full_join(sak_upgma, df_sak_upgma, by = "node") # rooted, full model
+sak_nj_ace <- full_join(sak_nj_rooted, df_sak_nj, by = "node")  # unrooted, all
 
 ```
 
-```{r fig.width = 5, fig.height = 5}
+# bootstrap
+```{r}
+sak_nj_bs <- df_sak_factor |> 
+  as.matrix() |>  
+  hamming.distance() |> 
+  as.dist() |> 
+  nj() |> 
+  boot.phylo(df_sak_factor |> as.matrix(), function(matr) {nj(hamming.distance(matr))})
+
+sak_nj_bs
+sak_nj_ace <- sak_nj_rooted |> apeBoot(sak_nj_bs) # apeBoot() not found...?
+```
+
+
+# plot UPGMA
+
+## UPGMA tree?
+
+```{r fig.width = 2.5, fig.height = 5}
 # UPGMA is good for circular
 
-sak_upgma4 |> 
+sak_upgma_ace |> 
   ggtree() +
-  geom_tree( aes(colour = class), continuous = "colour", size = 3) +
+  geom_tree( aes(colour = class), continuous = "colour", size = 1) +
   scale_colour_viridis_c(trans="log10") +
-  geom_tiplab(aes(colour = class, label = id), size = 2.5,nudge_x = .1) +
+  geom_tiplab(aes(colour = class, label = paste0(class, label)), size = 2.5,nudge_x = .3) +
   geom_treescale(x = 0.1, y = 30) +
-  expand_limits(x = 13) +
+  expand_limits(x = 20) +
   theme(legend.position = c(0.1, .9))
-ggsave(file = "output/sak_UPGMA_withoutOutgroup.pdf",
+```
+
+if satisfied, export
+```{r}
+ggsave(file = "output/sak_UPGMA_tree.pdf",
        device = cairo_pdf,
        unit = "mm",
        height = 300, 
        width = 250,  
        )
+```
 
-sak_nj5 |> 
-  root(outgroup = 40) |> 
-  ggtree(size = 1) +
-  geom_tree(aes(colour = class), continuous = "colour", size = 1) +
+
+## or UPGMA circular?
+
+```{r fig.width = 3, fig.height = 3}
+sak_upgma_ace |> 
+  ggtree(layout = "circular") +
+  geom_tree( aes(colour = class), continuous = "colour", size = 2) +
+  scale_colour_viridis_c() +
+  geom_tiplab(aes(colour = class, label = paste0(class, label)), size = 2.5,nudge_x = .1) +
+  geom_treescale(x = 0.1, y = 30) +
+  # expand_limits(x = 15) +
+  theme(legend.position = c(0.1, .9))
+```
+## or UPGMA ape?
+
+```{r fig.width = 3, fig.height = 3}
+sak_upgma_ace |> 
+  ggtree(layout = "ape") +
+  geom_tree(layout = "ape",  aes(colour = class), continuous = "colour", size = 1) +
   scale_colour_viridis_c(trans="log10") +
-  geom_tiplab(aes(colour = class, label = id), size = 2.5,nudge_x = .1) +
+  geom_tiplab(aes(colour = class, label = paste0(class, label)), size = 2.5, hjust = -.1) +
+  geom_treescale(x = 0.1, y = 30) +
+  # expand_limits(x = 15) +
+  theme(legend.position = c(0.1, .9))
+```
+
+```{r fig.width = 5, fig.height = 5}
+ sak_nj_ace |> 
+  # root(outgroup = 40) |> # if setting outgroup, we need to re-estimate ancestral phenotype, because fastAnc isn't root-free estimation method. 
+  ggtree(aes(colour = class), layout = "ape", continuous = "colour", size = 1) +
+  scale_colour_viridis_c(trans="log10") +
+  geom_tiplab(aes(colour = class, label = paste0(class, label)), size = 2.5,nudge_x = .1) +
   geom_treescale(x = 0.1, y = 30) +
   expand_limits(x = 20) +
   theme(legend.position = c(0.1, .9))
 ```
+
+
+```{r fig.width = 2.5, fig.height = 5}
+
+p1 <- sak_upgma_ace |> 
+  ggtree() +
+  geom_tree( aes(colour = class), continuous = "colour", size = 1) +
+  scale_colour_viridis_c() +
+  geom_tiplab(aes(colour = class, label = paste0(class, label)), size = 2.5,nudge_x = .3, family = "Fira Code") +
+  geom_treescale(x = 0.1, y = 30, family = "Fira Code") +
+  expand_limits(x = 20) +
+  theme_void(base_family = "Fira Code") +
+  theme(legend.position = c(0.1, .9))
+p2 <- sak_nj_ace |> # if setting outgroup, we need to re-estimate ancestral phenotype, because fastAnc isn't root-free estimation method.
+  ggtree(aes(colour = class), continuous = "colour", size = 1) +
+  scale_colour_viridis_c() +
+  geom_tiplab(aes(colour = class, label = paste0(class, label)), size = 2.5,nudge_x = .3, family = "Fira Code") +
+  geom_treescale(x = 0.1, y = 30, family = "Fira Code") +
+  expand_limits(x = 50) +
+  theme(legend.position = "none")
+```
+
+cowplot
+
+
+```{r}
+plot_grid(
+  p1,
+  p2,
+  align = "hv",
+  ncol=2, 
+  labels=LETTERS
+)
+ggsave(filename = "output/sak_rooted_trees_upgma+nj.pdf", 
+       device = cairo_pdf,
+       dpi = 450,
+       unit = "mm",
+       height = 250, 
+       width = 250,  
+       limitsize = FALSE) 
+```
+

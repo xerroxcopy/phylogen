@@ -144,9 +144,10 @@ sak_nj_modern |>
 #### root
 
 ```{r}
-sak_nj_modern_rooted <- sak_nj_modern |> 
-  root(node = 84)
-sak_nj_modern_rooted |> plot()
+sak_nj_rooted <- sak_nj |> 
+  root(outgroup = 40) # root the NJ tree so that it compares to UPGMA nicely
+sak_nj_rooted$root.edge <- 0
+sak_nj_rooted |> plot()
 ```
 # phytools fastAnc
 
@@ -289,10 +290,10 @@ sak_fit_upgma_function_modern <- fastAnc(
 df_sak_upgma_modern$Functions[(nrow(df_sak_named_rows_modern) + 1):nrow(df_sak_upgma_modern)] <- sak_fit_upgma_function_modern
 
 ### NJ
-#### NJ modern, outgroup, old, everything
+#### NJ modern, outgroup, old, everything. rooted
 
 sak_fit_nj_weight <- fastAnc(
-  sak_nj, 
+  sak_nj_rooted, 
   sak_trait_weight_named_num,
    
   )
@@ -301,21 +302,21 @@ df_sak_nj$weight[(nrow(df_sak_named_rows) + 1):nrow(df_sak_nj)] <- sak_fit_nj_we
 # fill NA (Officer, which I couldn't find ANY width data anywhere...)
 sak_trait_width_named_num[is.na(sak_trait_width_named_num)] <- 20.5 # borrow from old soldier knife
 sak_fit_nj_width <- fastAnc(
-  sak_nj, 
+  sak_nj_rooted, 
   sak_trait_width_named_num,
    
   )
 df_sak_nj$width[(nrow(df_sak_named_rows) + 1):nrow(df_sak_nj)] <- sak_fit_nj_width
 
 sak_fit_nj_class <- fastAnc(
-  sak_nj, 
+  sak_nj_rooted, 
   sak_trait_class_named_num,
    
   )
 df_sak_nj$class[(nrow(df_sak_named_rows) + 1):nrow(df_sak_nj)] <- sak_fit_nj_class
 
 sak_fit_nj_function <- fastAnc(
-  sak_nj, 
+  sak_nj_rooted, 
   sak_trait_function_named_num,
   )
 df_sak_nj$Functions[(nrow(df_sak_named_rows) + 1):nrow(df_sak_nj)] <- sak_fit_nj_function

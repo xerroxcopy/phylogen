@@ -6,7 +6,7 @@ output: html_notebook
 # sak
 
 
-## convert continuous variables to categoricals (not used)
+## convert continuous variables to categoricals
 
 ```{r}
 data_sak_raw$class |> quantile()
@@ -34,7 +34,7 @@ data_sak_raw |>
 
 ```{r}
 df_sak_longer <- data_sak_raw |> 
-  # filter(short_name != "OUT.Buck") |> 
+  filter(short_name != "OUT.Buck") |>
   mutate(
     layer_category = case_when(
       Layers == 1 ~ "Layer1",
@@ -91,10 +91,12 @@ df_sak_wider <- df_sak_longer |>
   # pivot_wider(names_from = func_category, values_from = value_func, values_fill = 0L) |> 
   relocate(starts_with("Layer"), .before = Lock) |> 
   relocate("Layer1", .after = "Layers")
-View(df_sak_wider)
+# View(df_sak_wider)
+df_sa
 ```
 
-# data (without continuous-categorical variables)
+# data (without continuous-categorical variables, not used)
+
 
 ```{r}
 df_sak <- data_sak_raw |>  
@@ -103,15 +105,22 @@ df_sak <- data_sak_raw |>
   mutate(node = node |> as.integer())
 ```
 
+# data
+
+```{r}
+df_sak <- df_sak_wider |> 
+  select(-sak) |> 
+  rowid_to_column(var = "node") |> 
+  mutate(node = node |> as.integer())
+```
+
+
 ## corresp
 
 data <https://www1.doshisha.ac.jp/~mjin/R/Chap_26/26.html> use FactoMineR instead of MASS to get eigen values
 
 ```{r fig.width=5, figh.height = 3}
-df_sak <- df_sak_wider |> 
-  select(-sak) |> 
-  rowid_to_column(var = "node") |> 
-  mutate(node = node |> as.integer())
+
 df_sak_factor <- df_sak |> 
   select(Layer1:`MAT_Scale:IsMetalGroup`) |> 
   mutate(across(everything(), as.factor))
@@ -168,7 +177,7 @@ df_sak_factor2 |>
   theme_bw(base_family = "Fira Code") +
   theme(panel.background = element_rect(fill = "white", colour = "black")) +
   guides(colour = guide_colourbar(barwidth = 5, barheight = .5), direction = "horizontal") +
-  theme(legend.direction = "horizontal", legend.position = c(0.1, 0.1),
+  theme(legend.direction = "horizontal", legend.position = c(0.2, 0.1),
         panel.grid = element_blank())
 ```
 
@@ -215,7 +224,7 @@ fviz_sil
 plot_sak_sil <- df_fviz_sil |>   
   ggplot(aes(clusters, y)) +
   geom_line() +
-  geom_vline(xintercept = 15, linetype = "dashed", colour = "gray90") +
+  geom_vline(xintercept = 17, linetype = "dashed", colour = "gray90") +
   ylab("Avg sil width") +
   xlab("No of clusters k") +
   theme_classic(base_family = "Fira Code")
@@ -318,8 +327,24 @@ sak_nj2 |>
   geom_tiplab(aes(label = paste0(class, label)), size = 2, hjust = -0.2) +
   scale_colour_viridis_c()
 ```
+# output
 
+```{r fig.width = 5, fig.height=5}
+getwd()
+df_sak_factor |> 
+  mutate(name = paste0(df_sak$class, df_sak$short_name)) |>
+  relocate(name) |>
+  # column_to_rownames("name") |> 
+  write_tsv("data/sak_factor2_for_mesquite_nex.tsv")
 
+# sak_nj |> write.nexus("data/sak_factor.nex") does not work
+```
+TSVをMesquiteで開く→TSV(Categorical)を選んで、1行目はキャラクターの名前？みたいなのにYesしてNEXで保存
+NEXをVSCodeで開き、TITLEを消し、数字のあとのEND;以降の、Mesquite関連と思われる部分を消す
+→SplitsTree4で開けるようになるので、開く
+デフォルトでHammingになっているので、そのままFilterで0.003に設定した（これの正しい値は特になさそう）。
+BS値（デフォルトの1000で十分らしい）やDeltaを計算し、タクサの位置を適当にいじって、PDFで書き出す
+PDFはそのままだとIllustratorで開けないので、Previewで開き、別名で保存でPDF/Aにするにチェックを入れると開けるようになる
 
 # appendices
 
@@ -387,12 +412,7 @@ ggsave(filename = "output/sak_nn.pdf",
 
 networx()ではかなりできることが少ないので、SplitsTree4を使わないといけなさそう：
 
-```{r fig.width = 5, fig.height=5}
-getwd()
-df_sak_factor_with_name |> 
-  write_tsv("./data/sak_factor_for_mesquite_nex.tsv")
-sak_nj |> write.nexus("data/sak_factor.nex")
-```
+
 
 ```{r}
 # data(yeast, package="phangorn")

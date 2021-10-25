@@ -212,7 +212,7 @@ plot_grid(
   plot_sak_pheno_Functions_nj,
   align = "hv",
   ncol=2, labels=LETTERS)   
-ggsave(filename = "output/sak_pheno.pdf", 
+ggsave(filename = "output/sak_modern_pheno_noPhenoCategory_other_than_layers.pdf", 
        device = cairo_pdf,
        dpi = 450,
        unit = "mm",
