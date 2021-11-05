@@ -21,7 +21,7 @@ df_sak_modern <- df_sak |>
 # filter only 0/1 categorical variables
 df_sak_factor_modern <-
   df_sak_modern |> 
-  select(Layer1:`MAT_Scale:IsMetalGroup`) |> 
+  select(Layer1:MetalG) |> 
   select(where(~(sum(.) > 0  & sum(.) < nrow(df_sak_modern)))) |> 
   mutate(across(everything(), as.factor)) 
 ```
@@ -386,7 +386,7 @@ https://rstudio-pubs-static.s3.amazonaws.com/345955_fba1ccbdcd8f424aa5505c15bfd7
 phyDat化でdim()が70になっちゃうのはas.character()で回復できる。が、anc.mprはphyDatではない？ので回復できない。purrrのmapなどでmatrixをvectorにすることでできそう。やってない。
 
 ```{r}
-phyDat_sak_modern <-
+sak_phyDat_modern <-
  df_sak_factor_modern |> 
   mutate(name = df_sak_modern$short_name) |> 
   relocate(name) |> 
@@ -397,8 +397,12 @@ phyDat_sak_modern <-
   mutate(across(everything(), as.character)) |> 
   column_to_rownames(var = "variable") |>
   phyDat(type = "USER", levels = c("1", "0"), return.index = FALSE) 
-phyDat_sak_modern |> as.character()
-sak_acctran <- acctran(tree = sak_nj_modern, data = phyDat_sak_modern)
+# reconstruct 71 traits
+sak_phyDat_modern |> as.character()
+sak_acctran <- acctran(tree = sak_nj_modern, data = sak_phyDat_modern) # 55 sequences with 71 character and 58 different site patterns.
+
+
+
 
 sak_acctran |> 
   parsimony(phyDat_sak)
@@ -406,6 +410,13 @@ anc.acctran <- ancestral.pars(sak_acctran, phyDat_sak_modern, "ACCTRAN")
 anc.mpr <- ancestral.pars(sak_acctran, phyDat_sak_modern, "MPR")
 anc.acctran |> View()
 anc.mpr |> View()
+```
+
+
+try reconstructing 71 chars, not 58 unique site patterns
+
+```{r}
+
 plotAnc(sak_acctran, anc.mpr, 14)
 anc.mpr$`83`
 a_model_name <- "Classic.AL"
@@ -414,25 +425,25 @@ a_model_factor <- df_sak_modern |>
   filter(short_name == a_model_name) |> unlist(use.names = FALSE)
 a_model_factor_min <- a_model_factor[7:95] |> as.numeric()  
 a_model_factor_min |> length() # len 89
-# 0 1 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 1 1 1 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0
-# 0 1 0 0 0 0 0 0 1 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 1
-# 0 1 0 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 1
-phyDat_sak_modern |> image()
-allSitePattern(5, levels = c("a", "c", "g", "t"), names = NULL) |> View()
+# allSitePattern(5, levels = c("a", "c", "g", "t"), names = NULL) |> View()
 anc.mpr$Classic.AL[, 1] 
 df_sak_factor_modern[,15:25] |> View()
 phyDat_sak_modern$Classic.AL |> length() # 70. does phyDat() drop uninformative traits?
-df_sak_factor_modern_min <- df_sak_factor_modern |> 
-  mutate(across(everything(), as.character )) |>
-  mutate(across(everything(), as.numeric)) |>
-  select(where(~sum(.) > 1)) |> 
-  select(where(~sum(.) < nrow(df_sak))) # |> 
-  mutate(short_name = df_sak_modern$short_name) |> 
-  relocate(short_name)
+
 df_sak_factor_modern_min[2,] |> unlist(use.names = FALSE)
 phyDat_sak_modern |> removeUndeterminedSites()
 phyDat_sak_modern |> View()
 ```
+
+
+## 興味のあるノードはどこか？
+
+有根系統樹にして、オリジナルを探したいが、オリジナルがどこにあるかはわからない想定でやっている。（おそらく)ggtreeのyscale = weightとかは中点を使っている。そのため、（おそらく）中点を使う。どこを中点とみなしたかはプロットしてみないとわからないので、03_sak-03-ancestral-plot.Rmdをつかってどこのnodeかを確かめる。
+
+```{r}
+
+```
+
 
 nodeの位置を確認
 
@@ -469,7 +480,7 @@ sak_upgma_modern |>
 
 
 
-<https://www.phytools.org/eqg2015/asr.html> "discrete characters"は微妙。ひとつの形質に関して図示。これを何回も繰り返すべきなのかもしれないが。
+<https://www.phytools.org/eqg2015/asr.html> "discrete characters"
 
 
 #### phangorn ML
@@ -478,6 +489,7 @@ sak_upgma_modern |>
 # fit_sak_nj <- fastAnc(tree = sak_nj, x = phyDat_sak,  )
 fit_sak_nj <- pml(tree = sak_nj, data = phyDat_sak) |> 
   optim.pml() # ... :D
+fit_sak_nj |> ggtree(layout = "ape") 
 ```
 
 

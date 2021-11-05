@@ -30,10 +30,10 @@ library(factoextra) # fviz_cluster
 # BiocManager::install("ggtree")
 library(phangorn) # neighbornet
 library(ggtree)
-# library(cultevo) # hamming distance ("uncorrectedP" in splitsTree4)
+# library(cultevo) # hamming distance ("uncorrectedP" in splitsTree4) not used. use e1071 (faster) and phangorn (for phyDat)
 # names(quartzFonts())
 # remotes::install_github("KlausVigo/ggnetworx")
-# library(ggnetworx) # plot networx. is this identical to tanggle?
+library(ggnetworx) # plot networx. is this identical to tanggle?
 # if (!requireNamespace("BiocManager", quietly = TRUE))
 #     install.packages("BiocManager")
 # 
@@ -43,6 +43,7 @@ library(ggtree)
 library(cowplot) # ggally??
 library(e1071) # for hamming
 library(phytools)
+library(aplot)
 
 ```
 
@@ -59,7 +60,7 @@ knitr::opts_chunk$set(dev = "ragg_png")
 
 ```{r}
 data_anth_raw <- read_sheet("https://docs.google.com/spreadsheets/d/1VZzjCMs21iBTIXoHR2Ph8wqyS8jQBlS4TDAmJXYjVKI/edit?usp=sharing", sheet = "anthropomorphic artefacts")
-data_sak_raw <- read_sheet("https://docs.google.com/spreadsheets/d/1VZzjCMs21iBTIXoHR2Ph8wqyS8jQBlS4TDAmJXYjVKI/edit?usp=sharing", sheet = "swiss army knives")
+data_sak_raw <- read_sheet("https://docs.google.com/spreadsheets/d/1CMR07q3v-0UwosNtEHKAyekOpQTRj7dpLUb323dFt-E/edit#gid=0", sheet = "swiss army knives")
 data_idol_raw <- read_sheet("https://docs.google.com/spreadsheets/d/1VZzjCMs21iBTIXoHR2Ph8wqyS8jQBlS4TDAmJXYjVKI/edit?usp=sharing", sheet = "idol lightsticks")
 data_sak_raw_old <- read_sheet("https://docs.google.com/spreadsheets/d/1Spgc75_EZV1eVJkGVIdzKFlbSIWLxXzeDB1gazu2Res/edit?usp=sharing", sheet = "swiss army knives")
 ```

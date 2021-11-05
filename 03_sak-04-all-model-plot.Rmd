@@ -6,23 +6,12 @@ output: html_notebook
 # join df for plot
 
 ```{r}
-sak_upgma_ace  <- full_join(sak_upgma, df_sak_upgma, by = "node") # rooted, full model
-sak_nj_ace <- full_join(sak_nj_rooted, df_sak_nj, by = "node")  # unrooted, all
+sak_upgma_ace  <- full_join(sak_upgma_bs, df_sak_upgma, by = "node") # rooted, all models including OLD models
+sak_nj_ace <- full_join(sak_nj_bs, df_sak_nj, by = "node")  # unrooted, all models including OLD models
+sak_parsimony_ace <- full_join(sak_parsimony, df_sak_parsimony, by = "node")
 
 ```
 
-# bootstrap
-```{r}
-sak_nj_bs <- df_sak_factor |> 
-  as.matrix() |>  
-  hamming.distance() |> 
-  as.dist() |> 
-  nj() |> 
-  boot.phylo(df_sak_factor |> as.matrix(), function(matr) {nj(hamming.distance(matr))})
-
-sak_nj_bs
-sak_nj_ace <- sak_nj_rooted |> apeBoot(sak_nj_bs) # apeBoot() not found...?
-```
 
 
 # plot UPGMA
@@ -31,7 +20,7 @@ sak_nj_ace <- sak_nj_rooted |> apeBoot(sak_nj_bs) # apeBoot() not found...?
 
 ```{r fig.width = 2.5, fig.height = 5}
 # UPGMA is good for circular
-
+# rooted tree?
 sak_upgma_ace |> 
   ggtree() +
   geom_tree( aes(colour = class), continuous = "colour", size = 1) +
@@ -66,6 +55,8 @@ sak_upgma_ace |>
   theme(legend.position = c(0.1, .9))
 ```
 ## or UPGMA ape?
+
+エッジのグラデーションがおかしい。。。
 
 ```{r fig.width = 3, fig.height = 3}
 sak_upgma_ace |> 
@@ -128,5 +119,89 @@ ggsave(filename = "output/sak_rooted_trees_upgma+nj.pdf",
        height = 250, 
        width = 250,  
        limitsize = FALSE) 
+```
+
+## plot with phenotypes
+
+```{r fig.width = 6, fig.height = 4}
+df_sak_phenotype_factor <- 
+  df_sak |> 
+  column_to_rownames(var = "short_name") |> 
+  select(Layer1:`MAT_Scale:IsMetalGroup`) |> 
+  select(where(~(sum(.) > 0  & sum(.) < nrow(df_sak)))) |> 
+  mutate(across(everything(), as.character)) 
+# View(df_sak_factor_colname)
+df_sak_phenotype_continuous <-
+  df_sak |> 
+  column_to_rownames(var = "short_name") |> 
+  select(Layers, Functions:Price)
+
+sak_nj_ace_plot <- sak_nj_ace |> # if setting outgroup, we need to re-estimate ancestral phenotype, because fastAnc isn't root-free estimation method.
+  ggtree(aes(colour = class), continuous = "colour", size = 1) +
+  scale_colour_viridis_c() +
+  geom_tiplab(
+    aes(colour = class, label = paste0(class, label)), 
+    size = 2.5,
+    nudge_x = .3, 
+    # hjust = 1,
+    align = TRUE, 
+    linesize = .2,
+    family = "Fira Code") +
+  geom_treescale(x = 0.1, y = 30, family = "Fira Code") +
+  expand_limits(x = 50, y = -20) +
+  theme(legend.position = "none")
+
+sak_nj_ace_plot |> 
+  gheatmap(
+    data = df_sak_phenotype_factor, 
+    offset=10, 
+    width=1,
+    colnames_angle = 90,
+    colnames_offset_y = .25,
+    font.size = 1.5,
+    hjust = 1
+  ) +
+  scale_fill_manual(values = c("gray97", "lightblue")) +
+  theme_void(base_family = "Fira Code") +
+  theme(legend.position = "none")
+
+p_layers <-
+  sak_nj_ace_plot |>
+  gheatmap(
+    data = df_sak_phenotype_continuous |> select(Layers),
+    width = 1
+    ) +
+  scale_fill_viridis_c(trans = "log10") +
+  theme(legend.position = "none")
+p_width <-
+  sak_nj_ace_plot |>
+  gheatmap(
+    data = df_sak_phenotype_continuous |> select(width),
+    width = 1
+    ) +
+  scale_fill_viridis_c(trans = "log10") +
+  theme(legend.position = "none")
+
+p_weight <-
+  df_sak_phenotype_continuous |> select(weight)
+  # sak_nj_ace_plot |>
+  # gheatmap(
+  #   data = df_sak_phenotype_continuous |> select(weight),
+  #   width = 1
+  #   ) +
+  scale_fill_viridis_c(trans = "log10") +
+  theme(legend.position = "none")
+
+p_Functions <-
+  sak_nj_ace_plot |>
+  gheatmap(
+    data = df_sak_phenotype_continuous |> select(Functions),
+    width = 1
+  ) +
+  scale_fill_viridis_c(trans = "log10") +
+  theme(legend.position = "none")
+
+sak_nj_ace_plot + 
+  insert_right(p_weight)
 ```
 

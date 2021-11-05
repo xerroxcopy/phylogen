@@ -6,6 +6,7 @@ output: html_notebook
 # sak
 
 
+
 ## convert continuous variables to categoricals
 
 ```{r}
@@ -89,10 +90,9 @@ df_sak_wider <- df_sak_longer |>
   # pivot_wider(names_from = weight_category, values_from = value_weight, values_fill = 0L) |> 
   # pivot_wider(names_from = width_category, values_from = value_width, values_fill = 0L) |> 
   # pivot_wider(names_from = func_category, values_from = value_func, values_fill = 0L) |> 
-  relocate(starts_with("Layer"), .before = Lock) |> 
+  relocate(starts_with("Layer"), .before = isLockable) |> 
   relocate("Layer1", .after = "Layers")
 # View(df_sak_wider)
-df_sa
 ```
 
 # data (without continuous-categorical variables, not used)
@@ -114,6 +114,12 @@ df_sak <- df_sak_wider |>
   mutate(node = node |> as.integer())
 ```
 
+## data summary
+
+```{r}
+df_sak |> group_by(class) |> 
+  summarize(n = n())
+```
 
 ## corresp
 
@@ -122,7 +128,7 @@ data <https://www1.doshisha.ac.jp/~mjin/R/Chap_26/26.html> use FactoMineR instea
 ```{r fig.width=5, figh.height = 3}
 
 df_sak_factor <- df_sak |> 
-  select(Layer1:`MAT_Scale:IsMetalGroup`) |> 
+  select(Layer1:MetalG) |> 
   mutate(across(everything(), as.factor))
 sak_mca <- MCA(df_sak_factor, ncp = 2, graph = FALSE)
 
@@ -259,8 +265,6 @@ sak_dist <- hamming.distance(df_sak_factor |> as.matrix()) |> as.dist()
 ## construct a UPGMA tree
 
 ```{r}
-sak_dist <- hamming.distance(df_sak_factor |> as.matrix()) |> as.dist()
-
 sak_upgma <- sak_dist |>
   hclust(method = "average") |> # average = UPGMA
    as.phylo()
@@ -346,16 +350,22 @@ NEXをVSCodeで開き、TITLEを消し、数字のあとのEND;以降の、Mesqu
 BS値（デフォルトの1000で十分らしい）やDeltaを計算し、タクサの位置を適当にいじって、PDFで書き出す
 PDFはそのままだとIllustratorで開けないので、Previewで開き、別名で保存でPDF/Aにするにチェックを入れると開けるようになる
 
-# appendices
-
-参考。phyDatでカテゴリカルなものを復元しようとしたり
 
 
-create phyDat data for categorical phenotype reconstruction
+
+# parsimony
+
+## parsimony score
+
+p-score
+
+> The parsimony score for each tree is the sum of the smallest number of substitutions needed for each site. The
+tree with the lowest parsimony score is the most parsimonious tree. There are often ties. - [source](http://pages.stat.wisc.edu/~larget/Genetics629/Fall2009/outline2.pdf)
+
+create phyDat data for mparsimony tree and categorical phenotype reconstruction
 
 ```{r}
-phyDat_sak <-
- df_sak_factor |> 
+df_sak_phyDat <- df_sak_factor |> 
   mutate(name = df_sak$short_name) |> 
   relocate(name) |> 
   rownames_to_column() |> 
@@ -363,39 +373,139 @@ phyDat_sak <-
   pivot_wider(variable, name) |> 
   filter(variable != "rowname") |> 
   mutate(across(everything(), as.character)) |> 
-  column_to_rownames(var = "variable") |>
+  column_to_rownames(var = "variable")
+sak_phyDat <-df_sak_phyDat |> 
   phyDat(type = "USER", levels = c("0", "1")) 
 ```
 
+### compare 
+```{r}
+sak_nj |> 
+  parsimony(sak_phyDat) # 252
+sak_upgma |> 
+  parsimony(sak_phyDat) # 285. worse
+
+```
+[phangorn](https://rdrr.io/cran/phangorn/man/parsimony.html)を用いて最節約法をする。pratchet()を最終的には使う。
+
+```{r fig.width = 5, fig.height = 5}
+# "optim.parsimony tries to find the maximum parsimony tree using either Nearest Neighbor Interchange (NNI) rearrangements or sub tree pruning and regrafting (SPR)"
+sak_parsimony_nj <- optim.parsimony(sak_nj, sak_phyDat) # start with a nj tree, Final p-score 236 after  5 nni operations 
+sak_parsimony_upgma <- optim.parsimony(tree = sak_upgma, data = sak_phyDat) # start with a upgma tree, Final p-score 235 after  16 nni operations (better...?)
+
+sak_parsimony_nj |> plot(type = "unrooted") # cladogram with no branch length
+
+# "pratchet implements the parsimony ratchet (Nixon, 1999) and is the preferred way to search for the best tree"
+sak_parsimony <- pratchet(sak_phyDat, trace = 0, minit = 100) # 20 sec
+parsimony(c(sak_parsimony_nj, sak_parsimony_upgma, sak_parsimony), data = sak_phyDat) # 236, 235, 234 so pratchet() barely the best
+# give them branch length
+sak_parsimony <- sak_parsimony |> 
+  acctran(sak_phyDat)
+sak_parsimony |> 
+  ggtree(layout = "ape") +
+  geom_tiplab(size = 2, hjust = -.2) +
+  geom_nodelab(color = "lightblue", size = 1.5)
+```
+### NJ Bootstrapping with phyDat / phangorn
+
+なんかもうひとつのboot.phylo()がうまくいってるのかわからないのでこちらを使う。NJ / UPGMAの場合、bootstrap.phyDat()を使う[source document](https://rdrr.io/cran/phangorn/man/bootstrap.pml.html)
+```{r}
+set.seed(913)
+# nj
+sak_nj_bs_trees <- sak_phyDat |> 
+  bootstrap.phyDat(
+    FUN = \(x) {
+      x |> dist.hamming() |> NJ()
+    },
+    bs = 1000) # 2sec
+
+sak_nj_bs <- plotBS(sak_nj, sak_nj_bs_trees)
+sak_nj_bs |> ggtree() +
+  geom_nodelab()
+# upgma
+sak_upgma_bs_trees <- sak_phyDat |> 
+  bootstrap.phyDat(
+    FUN = \(x) {
+      x |> dist.hamming() |> 
+        hclust(method = "average") |> 
+        as.phylo()
+    },
+    bs = 1000
+  ) # 3sec
+sak_upgma_bs <- plotBS(sak_upgma, sak_upgma_bs_trees)
+sak_upgma_bs |> ggtree() +
+  geom_nodelab(vjust = -.5, hjust = 1, nudge_x = -.2, size = 2)
+```
+## join traits for parsimony
+
+```{r}
+df_sak_parsimony <- sak_parsimony |> 
+  as_tibble() |> 
+  left_join(df_sak, by = "node") |> 
+  select(parent:class, short_name, Functions, width, weight) |> 
+  mutate(short_name = if_else(is.na(short_name), node |> as.character(), short_name)) |> 
+  column_to_rownames(var = "short_name") |> 
+  mutate(node = node |> as.numeric()) |> 
+  select(node, class, Functions, weight, width)
+```
+
+
+
+# what next?
+plot (04) or ancestral character reconstruction(02).
+
+# appendices
+
+参考。phyDatでカテゴリカルなものを復元しようとしたり
 ### neighbornet
 
 できるけど…
+SplitsTree4のものを読み込めるらしいので、それでやってみるか
 
 plot isn't really good and does not match exactly with SplitsTree4 output, probably because `neighborNet()` func is experimental. use SplitsTree4 using write.nexus()?
 
 ```{r fig.width = 5, fig.height=5}
-sak_dist2 <- phyDat_sak |> dist.hamming() # must be phyDat
-sak_nn <- sak_dist2 |> 
+sak_dist2 <- sak_phyDat |> dist.hamming() # must be phyDat
+sak_nn_test <- sak_dist2 |>
   neighborNet() # takes 30sec
 
+sak_nn_test |> as_tibble()
+sak_nn_test |> write.nexus.networx(file = "data/sak_network_networx.nex")
+# read and save again on st4
+sak_nn_test2 <- read.nexus.networx(file = "data/sak_network_networx.nex")
+sak_nn_test2 |> as_tibble() |> View() # duplicate branches? no, except for one (node 1)
+sak_nn_test2 |> ggsplitnet() # can be rendered
+sak_nn <- read.nexus.networx(file = "data/sak_networkFilter003_bs.nex")
+sak_nn |> as_tibble() |> View() #61 tips, 237 internal nodes
+sak_nn_test2 # 62 tips, 907 internal nodes
 
-
-df_sak_nn <- sak_nn |> 
+sak_nn2 <- sak_nn |> 
   as_tibble() |> 
-  left_join(df_sak_rowid, by = "node") |> 
+  filter(branch.length > 0) |> 
+  as.phylo()
+sak_nn2 |> View()
+sak_nn2 |> 
+  ggsplitnet()
+sak_nn2 |> 
+  ggsplitnet(ladderize = FALSE)
+sak_nn_test |> 
+  ggsplitnet()
+df_sak_nn <- sak_nn |> 
+  as_tibble() |> #View()
+  left_join(df_sak_rowid, by = "node") |>
   select(parent:class, short_name, Functions, width, weight, id) |> 
   rowid_to_column() |> 
-  mutate(short_name = if_else(is.na(short_name), rowid |> as.character(), short_name)) |> 
-  column_to_rownames(var = "short_name") |>
+  mutate(short_name = if_else(is.na(short_name), rowid |> as.character(), short_name)) |>
+  # column_to_rownames(var = "short_name") |>
   mutate(node = node |> as.numeric()) |>
-  select(node, class, id, Functions, weight, width)
+  select(short_name, node, class, id, Functions, weight, width)
 sak_nn2 <- full_join(sak_nn, df_sak_nn, by = "node")
 ```
 
 ### plot NN
 
 ```{r}
-sak_nn |>  ggsplitnet(aes(x, y))+
+sak_nn |>  ggsplitnet() 
   geom_splitnet(size = .1) +
   geom_tiplab2(size = 2, family = "Fira Code", hjust = -.1) +
   theme_tree() +
@@ -435,7 +545,7 @@ hist(delta.score(yeast, "all"))
 ```{r}
 # compute delta score. takes 1min, sometimes it fails with error object 'decreasing' not found
 # re-run it and it works (at least it worked)
-sak_delta_all <- phyDat_sak |> delta.score(arg = "all") 
+sak_delta_all <- sak_phyDat |> delta.score(arg = "all") 
 
 
 sak_delta_all |> 
